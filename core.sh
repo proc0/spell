@@ -4,37 +4,23 @@ COLUMNS=30
 LINES=30
 
 declare -g -x input=''
-declare -g -x ifs=$IFS
 
-declare -g -x -A _screen=(
-    ['rows']=$LINES
-    ['cols']=$COLUMNS
-)
+declare -g -x -A room=( ['x']=$LINES ['y']=$COLUMNS )
 
-declare -g -x -A _cursor=( ['x']=5 ['y']=5 )
-declare -g -x -A _prev=( ['x']=5 ['y']=5 )
-declare -g -x blink=0
+declare -g -x -A mouse=( ['x']=1 ['y']=1 )
+
 
 Move(){
   case $1 in
-    "up") (( _cursor['y'] > 1 )) && _cursor['y']=$(( ${_cursor['y']}-1 )) ;;
-    "down") (( _cursor['y'] < _screen['rows'] )) && _cursor['y']=$(( ${_cursor['y']}+1 )) ;;
-    "left") (( _cursor['x'] > 1 )) && _cursor['x']=$(( ${_cursor['x']}-1 )) ;;
-    "right") (( _cursor['x'] < _screen['cols'] )) && _cursor['x']=$(( ${_cursor['x']}+1 )) ;;
-    *) (( _cursor['x'] < _screen['cols'] )) && _cursor['x']=$(( ${_cursor['x']}+1 )) ;;
+    up) (( mouse['y'] > 1 )) && mouse['y']=$(( ${mouse['y']}-1 )) ;;
+    down) (( mouse['y'] < room['x'] )) && mouse['y']=$(( ${mouse['y']}+1 )) ;;
+    left) (( mouse['x'] > 1 )) && mouse['x']=$(( ${mouse['x']}-1 )) ;;
+    right) (( mouse['x'] < room['y'] )) && mouse['x']=$(( ${mouse['x']}+1 )) ;;
   esac
-
-  if [[ ${_cursor['x']} != ${_prev['x']} ]] || [[ ${_cursor['y']} != ${_prev['y']} ]]; then
-
-    _prev['x']=${_cursor['x']}
-    _prev['y']=${_cursor['y']}
-  fi
 }
 
 Input(){
-  read -n3 -r _input 2>/dev/null
-  # read -n1 -r -t 0.01 _input 2>/dev/null >&2
-  input=$_input
+  read -n3 -r input 2>/dev/null
 }
 
 Control(){
@@ -43,8 +29,8 @@ Control(){
     $'\e[B') Move down;;
     $'\e[C') Move right;;
     $'\e[D') Move left;;
-    $'\e') exit 0;;
-    *) echo "";;
+    $'\e[\e') return 1;;
+    *) return 0;;
   esac
 }
 
@@ -52,23 +38,19 @@ Output(){
   echo -e "\ec"
   echo -e "\e[1;44m"
   echo -e "\e[2J"
-  echo -e "\e[${_cursor['y']};${_cursor['x']}H\e$(echo "▒")"
-
+  echo -e "\e[${mouse['y']};${mouse['x']}H\e ▒"
 }
 
-Start(){
-  # IFS=''
-  stty sane time 0 2>/dev/null 
+Setup(){
+  stty raw
 }
 
 End(){
-  IFS=$ifs
   exit 0
 }
 
 Core(){
-  Start
-  Output
+
   while [ : ]; do
     Input
     Control
@@ -76,4 +58,12 @@ Core(){
   done
 }
 
+Start(){
+  Setup
+  Output
+  trap 'Input, Core, Control; exit' 1
+}
+
+Start
 Core
+End
