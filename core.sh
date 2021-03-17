@@ -1,14 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 COLUMNS=30
 LINES=30
 
-declare -g -x input=''
 
 declare -g -x -A room=( ['x']=$LINES ['y']=$COLUMNS )
-
 declare -g -x -A mouse=( ['x']=1 ['y']=1 )
-
 
 Move(){
   case $1 in
@@ -19,18 +16,23 @@ Move(){
   esac
 }
 
+declare -g -x input=''
+
 Input(){
-  read -n3 -r input 2>/dev/null
+  read -n1 -r -d '' input
 }
 
 Control(){
-  case $input in
-    $'\e[A') Move up;;
-    $'\e[B') Move down;;
-    $'\e[C') Move right;;
-    $'\e[D') Move left;;
-    $'\e[\e') return 1;;
-    *) return 0;;
+  case "$input" in
+    $'\e') 
+      read -n2 -r -t.001 -d '' input
+      case "$input" in
+          '[A') Move up ;;
+          '[B') Move down ;;
+          '[C') Move right ;;
+          '[D') Move left ;;
+          *) exit ;;
+      esac
   esac
 }
 
@@ -45,12 +47,7 @@ Setup(){
   stty raw
 }
 
-End(){
-  exit 0
-}
-
 Core(){
-
   while [ : ]; do
     Input
     Control
@@ -61,9 +58,8 @@ Core(){
 Start(){
   Setup
   Output
-  trap 'Input, Core, Control; exit' 1
 }
 
 Start
 Core
-End
+exit
