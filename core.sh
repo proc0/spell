@@ -4,15 +4,17 @@ COLUMNS=30
 LINES=30
 
 
-declare -g -x -A room=( ['x']=$LINES ['y']=$COLUMNS )
-declare -g -x -A mouse=( ['x']=1 ['y']=1 )
+declare -g -x -A frame=( ['x']=$LINES ['y']=$COLUMNS )
+declare -g -x -A focus=( ['x']=1 ['y']=1 )
+
+declare -g -x text=''
 
 Move(){
   case $1 in
-    up) (( mouse['y'] > 1 )) && mouse['y']=$(( ${mouse['y']}-1 )) ;;
-    down) (( mouse['y'] < room['x'] )) && mouse['y']=$(( ${mouse['y']}+1 )) ;;
-    left) (( mouse['x'] > 1 )) && mouse['x']=$(( ${mouse['x']}-1 )) ;;
-    right) (( mouse['x'] < room['y'] )) && mouse['x']=$(( ${mouse['x']}+1 )) ;;
+    up) (( focus['y'] > 1 )) && focus['y']=$(( ${focus['y']}-1 )) ;;
+    down) (( focus['y'] < frame['x'] )) && focus['y']=$(( ${focus['y']}+1 )) ;;
+    left) (( focus['x'] > 1 )) && focus['x']=$(( ${focus['x']}-1 )) ;;
+    right) (( focus['x'] < frame['y'] )) && focus['x']=$(( ${focus['x']}+1 )) ;;
   esac
 }
 
@@ -32,15 +34,24 @@ Control(){
           '[C') Move right ;;
           '[D') Move left ;;
           *) exit ;;
-      esac
+      esac;;
+    *) text+="$input";;
   esac
 }
 
-Output(){
+Preset(){
   echo -e "\ec"
   echo -e "\e[1;44m"
   echo -e "\e[2J"
-  echo -e "\e[${mouse['y']};${mouse['x']}H\e ▒"
+}
+
+Render(){
+  echo -e "\e[${focus['y']};${focus['x']}H\e ▒ $text"
+}
+
+Output(){
+  Preset
+  Render
 }
 
 Setup(){
