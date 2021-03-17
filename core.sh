@@ -32,14 +32,14 @@ Move(){
 }
 
 Input(){
-  read -n2 -r _input 2>/dev/null
+  read -n3 -r _input 2>/dev/null
   # read -n1 -r -t 0.01 _input 2>/dev/null >&2
   input=$_input
 }
 
 Control(){
   case $input in
-    $'\e[A') Move ;;
+    $'\e[A') Move up;;
     $'\e[B') Move down;;
     $'\e[C') Move right;;
     $'\e[D') Move left;;
@@ -52,12 +52,12 @@ Output(){
   echo -e "\ec"
   echo -e "\e[1;44m"
   echo -e "\e[2J"
-  echo -e "\e[${_cursor['y']};${_cursor['x']}H"
+  echo -e "\e[${_cursor['y']};${_cursor['x']}H\e$(echo "▒")"
 
 }
 
 Start(){
-  IFS=''
+  # IFS=''
   stty sane time 0 2>/dev/null 
 }
 
