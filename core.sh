@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
-LINES=44
-COLUMNS=88
+ROWS=44
+COLS=88
 
-declare -g -x ifs=''
+OFS=$IFS
 
-declare -g -x -A frame=( ['y']=$LINES ['x']=$COLUMNS )
-declare -g -x -A focus=( ['x']=1 ['y']=1 )
+declare -A frame=( ['y']=$ROWS ['x']=$COLS )
+declare -A focus=( ['x']=1 ['y']=1 )
 
-declare -g -x text=""
-declare -g -x action=''
+text=""
+action=''
 
 Input(){
   input=''
@@ -22,7 +22,7 @@ Input(){
         '[B') input=BW ;;
         '[C') input=RT ;;
         '[D') input=LT ;;
-           *) input=EX ;;
+           *) input=UT ;;
       esac;;
     *) text+=$key ;;
   esac
@@ -51,21 +51,25 @@ Control(){
     BW) Maximum y && Forward y ;;
     RT) Maximum x && Forward x ;;
     LT) Minimum x && Bakward x ;;
-    EX) exit ;;
+    UT) End ;;
   esac
 }
 
 Primer(){
-  echo -e "\ec\e[1;44m\e[2J"
+  echo -e "\e[1;44m\e[2J"
 }
 
 Render(){
   echo -en "\e[${focus['y']};${focus['x']}H ▒ $text"
 }
 
-End(){
-  IFS=$ifs
-  exit 0
+Resize(){
+  echo -e "\e[8;$ROWS;$COLS;t"
+}
+
+Output(){
+  Primer
+  Render
 }
 
 Core(){
@@ -76,25 +80,22 @@ Core(){
   done
 }
 
-Output(){
-  Primer
-  Render
-}
-
-Resize(){
-  echo -e "\e[8;$LINES;$COLUMNS;t"
-}
-
 Start(){
   stty raw
-  ifs=$IFS
   IFS=''
   Resize
+  Output
 }
 
-# Main
-# ----
-Start
-Output
-Core
-End
+End(){
+  IFS=$OFS
+  exit 0
+}
+
+Main(){
+  Start
+  Core
+  End
+}
+
+Main
