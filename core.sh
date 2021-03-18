@@ -3,59 +3,71 @@
 COLUMNS=30
 LINES=30
 
+declare -g -x ifs=''
 
-declare -g -x -A frame=( ['x']=$LINES ['y']=$COLUMNS )
+declare -g -x -A frame=( ['y']=$LINES ['x']=$COLUMNS )
 declare -g -x -A focus=( ['x']=1 ['y']=1 )
 
-declare -g -x text=''
-
-Move(){
-  case $1 in
-    up) (( focus['y'] > 1 )) && focus['y']=$(( ${focus['y']}-1 )) ;;
-    down) (( focus['y'] < frame['x'] )) && focus['y']=$(( ${focus['y']}+1 )) ;;
-    left) (( focus['x'] > 1 )) && focus['x']=$(( ${focus['x']}-1 )) ;;
-    right) (( focus['x'] < frame['y'] )) && focus['x']=$(( ${focus['x']}+1 )) ;;
-  esac
-}
-
-declare -g -x input=''
+declare -g -x text=""
+declare -g -x action=''
 
 Input(){
-  read -n1 -r -d '' input
+  input=''
+  read -n1 -r key
+  case $key in
+    $'\e') 
+      read -n2 -r -t.001 ctrl
+      case $ctrl in
+        '[A') input=up ;;
+        '[B') input=dn ;;
+        '[C') input=rt ;;
+        '[D') input=lt ;;
+           *) input=qt ;;
+      esac;;
+    *) text+=$key ;;
+  esac
+  action=$input
+}
+
+Minimum(){
+  (( focus[$1] > 1 ))
+}
+
+Maximum(){
+  (( focus[$1] < frame[$1] ))
+}
+
+Reverse(){
+  focus[$1]=$(( ${focus[$1]}-1 ))
+}
+
+Forward(){
+  focus[$1]=$(( ${focus[$1]}+1 ))
 }
 
 Control(){
-  case "$input" in
-    $'\e') 
-      read -n2 -r -t.001 -d '' input
-      case "$input" in
-          '[A') Move up ;;
-          '[B') Move down ;;
-          '[C') Move right ;;
-          '[D') Move left ;;
-          *) exit ;;
-      esac;;
-    *) text+="$input";;
+  case $action in
+    up) Minimum y && Reverse y ;;
+    dn) Maximum y && Forward y ;;
+    rt) Maximum x && Forward x ;;
+    lt) Minimum x && Reverse x ;;
+    qt) exit ;;
   esac
 }
 
-Preset(){
+Primer(){
   echo -e "\ec"
   echo -e "\e[1;44m"
   echo -e "\e[2J"
 }
 
 Render(){
-  echo -e "\e[${focus['y']};${focus['x']}H\e ▒ $text"
+  echo -en "\e[${focus['y']};${focus['x']}H\e ▒ $text"
 }
 
-Output(){
-  Preset
-  Render
-}
-
-Setup(){
-  stty raw
+End(){
+  IFS=$ifs
+  exit
 }
 
 Core(){
@@ -66,11 +78,20 @@ Core(){
   done
 }
 
-Start(){
-  Setup
-  Output
+Output(){
+  Primer
+  Render
 }
 
+Start(){
+  stty raw
+  ifs=$IFS
+  IFS=''
+}
+
+# Main
+# ----
 Start
+Output
 Core
-exit
+End
