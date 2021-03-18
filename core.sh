@@ -3,21 +3,23 @@
 ROWS=44
 COLS=88
 
+FOCUS=▒
 OFS=$IFS
 
-declare -A frame=( ['y']=$ROWS ['x']=$COLS )
+declare -r -A frame=( ['y']=$ROWS ['x']=$COLS )
 declare -A focus=( ['x']=1 ['y']=1 )
 
-text=""
+text=''
 action=''
 
 Input(){
-  input=''
+  local input=''
+  local key
   read -n1 -r key
   case $key in
     $'\e') 
-      read -n2 -r -t.001 ctrl
-      case $ctrl in
+      read -n2 -r -t.001 key
+      case $key in
         '[A') input=FW ;;
         '[B') input=BW ;;
         '[C') input=RT ;;
@@ -60,7 +62,7 @@ Primer(){
 }
 
 Render(){
-  echo -en "\e[${focus['y']};${focus['x']}H ▒ $text"
+  echo -en "\e[${focus['y']};${focus['x']}H$FOCUS$text"
 }
 
 Resize(){
@@ -72,7 +74,7 @@ Output(){
   Render
 }
 
-Core(){
+Spin(){
   while [ : ]; do
     Input
     Control
@@ -92,10 +94,10 @@ End(){
   exit 0
 }
 
-Main(){
+Core(){
   Start
-  Core
+  Spin
   End
 }
 
-Main
+Core
