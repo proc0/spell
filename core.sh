@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-COLUMNS=30
-LINES=30
+LINES=44
+COLUMNS=88
 
 declare -g -x ifs=''
 
@@ -18,11 +18,11 @@ Input(){
     $'\e') 
       read -n2 -r -t.001 ctrl
       case $ctrl in
-        '[A') input=up ;;
-        '[B') input=dn ;;
-        '[C') input=rt ;;
-        '[D') input=lt ;;
-           *) input=qt ;;
+        '[A') input=FW ;;
+        '[B') input=BW ;;
+        '[C') input=RT ;;
+        '[D') input=LT ;;
+           *) input=EX ;;
       esac;;
     *) text+=$key ;;
   esac
@@ -37,7 +37,7 @@ Maximum(){
   (( focus[$1] < frame[$1] ))
 }
 
-Reverse(){
+Bakward(){
   focus[$1]=$(( ${focus[$1]}-1 ))
 }
 
@@ -47,27 +47,25 @@ Forward(){
 
 Control(){
   case $action in
-    up) Minimum y && Reverse y ;;
-    dn) Maximum y && Forward y ;;
-    rt) Maximum x && Forward x ;;
-    lt) Minimum x && Reverse x ;;
-    qt) exit ;;
+    FW) Minimum y && Bakward y ;;
+    BW) Maximum y && Forward y ;;
+    RT) Maximum x && Forward x ;;
+    LT) Minimum x && Bakward x ;;
+    EX) exit ;;
   esac
 }
 
 Primer(){
-  echo -e "\ec"
-  echo -e "\e[1;44m"
-  echo -e "\e[2J"
+  echo -e "\ec\e[1;44m\e[2J"
 }
 
 Render(){
-  echo -en "\e[${focus['y']};${focus['x']}H\e ▒ $text"
+  echo -en "\e[${focus['y']};${focus['x']}H ▒ $text"
 }
 
 End(){
   IFS=$ifs
-  exit
+  exit 0
 }
 
 Core(){
@@ -83,10 +81,15 @@ Output(){
   Render
 }
 
+Resize(){
+  echo -e "\e[8;$LINES;$COLUMNS;t"
+}
+
 Start(){
   stty raw
   ifs=$IFS
   IFS=''
+  Resize
 }
 
 # Main
