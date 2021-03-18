@@ -4,13 +4,15 @@ ROWS=44
 COLS=88
 
 FOCUS=▒
-OFS=$IFS
+BLOCK=▒
 
-declare -r -A frame=( ['y']=$ROWS ['x']=$COLS )
+declare -r -A FRAME=( ['y']=$ROWS ['x']=$COLS )
 declare -A focus=( ['x']=1 ['y']=1 )
 
-text=''
 action=''
+
+text=''
+rect=''
 
 Input(){
   local input=''
@@ -36,7 +38,7 @@ Minimum(){
 }
 
 Maximum(){
-  (( focus[$1] < frame[$1] ))
+  (( focus[$1] < FRAME[$1] ))
 }
 
 Bakward(){
@@ -53,8 +55,27 @@ Control(){
     BW) Maximum y && Forward y ;;
     RT) Maximum x && Forward x ;;
     LT) Minimum x && Bakward x ;;
-    UT) End ;;
+    UT) Stop ;;
   esac
+}
+ 
+Rectangle(){
+  local x=$(( $1 + 1 ))
+  local y=$(( $2 + 1 ))
+  local w=$(( $3 ))
+  local h=$(( $4 ))
+
+  local rectangle="\e[$x;$y;H\e[1;$5m"
+  for i in $( seq 1 $h ); do 
+    row=$(( i + x ))
+    for ii in $( seq 1 $w ); do 
+      rectangle+=$BLOCK
+    done
+    rectangle+="\n\e[$row;$y;H"
+  done
+  rectangle+="\e[1;44m"
+
+  echo $rectangle
 }
 
 Primer(){
@@ -62,6 +83,7 @@ Primer(){
 }
 
 Render(){
+  echo -e $rect
   echo -en "\e[${focus['y']};${focus['x']}H$FOCUS$text"
 }
 
@@ -89,7 +111,9 @@ Start(){
   Output
 }
 
-End(){
+OFS=$IFS
+
+Stop(){
   IFS=$OFS
   exit 0
 }
@@ -97,7 +121,10 @@ End(){
 Core(){
   Start
   Spin
-  End
+  Stop
 }
+
+rect=$(Rectangle 3 3 15 5 41)
+rect+=$(Rectangle 4 4 13 1 44)
 
 Core
