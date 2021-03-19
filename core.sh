@@ -11,8 +11,11 @@ declare -A focus=( ['x']=1 ['y']=1 )
 
 action=''
 
-text=''
-rect=''
+string=''
+
+selected=0
+declare -a components=()
+layout=""
 
 Input(){
   local input=''
@@ -22,13 +25,13 @@ Input(){
     $'\e') 
       read -n2 -r -t.001 key
       case $key in
-        '[A') input=FW ;;
-        '[B') input=BW ;;
+        '[A') input=UP ;;
+        '[B') input=DN ;;
         '[C') input=RT ;;
         '[D') input=LT ;;
-           *) input=UT ;;
+           *) input=QU ;;
       esac;;
-    *) text+=$key ;;
+    *) string+=$key ;;
   esac
   action=$input
 }
@@ -41,7 +44,7 @@ Maximum(){
   (( focus[$1] < FRAME[$1] ))
 }
 
-Bakward(){
+Backward(){
   focus[$1]=$(( ${focus[$1]}-1 ))
 }
 
@@ -49,47 +52,60 @@ Forward(){
   focus[$1]=$(( ${focus[$1]}+1 ))
 }
 
+Retreat(){
+  Minimum $1 && Backward $1
+}
+
+Advance(){
+  Maximum $1 && Forward $1
+}
+
+SelectPrev(){
+  (( selected >= 1 )) && selected=$(( selected - 1 ))
+}
+
+SelectNext(){
+  (( selected < ${#components[@]} )) && selected=$(( selected + 1 ))
+}
+
 Control(){
   case $action in
-    FW) Minimum y && Bakward y ;;
-    BW) Maximum y && Forward y ;;
-    RT) Maximum x && Forward x ;;
-    LT) Minimum x && Bakward x ;;
-    UT) Stop ;;
+    # UP) Retreat y ;;
+    # DN) Advance y ;;
+    UP) SelectPrev ;;
+    DN) SelectNext ;;
+    LT) Retreat x ;;
+    RT) Advance x ;;
+    QU) Stop ;;
   esac
+}
+
+Color(){
+  local color
+  case $1 in
+      gray)   color=0 ;;
+      red)    color=1 ;;
+      green)  color=2 ;;
+      yellow) color=3 ;;
+      blue)   color=4 ;;
+      violet) color=5 ;;
+      cyan)   color=6 ;;
+      white)  color=7 ;;
+      *)      color=7 ;;
+  esac
+  echo $color
 }
 
 Foreground(){
-  local color="\e"
-  case "$1" in
-      gray) color+="[01;30m" ;;
-      red) color+="[01;31m" ;;
-      green) color+="[01;32m" ;;
-      yellow) color+="[01;33m" ;;
-      blue) color+="[01;34m" ;;
-      magenta) color+="[01;35m" ;;
-      cyan) color+="[01;36m" ;;
-      white) color+="[01;37m" ;;
-      *) color+="[01;37m" ;;
-  esac
-  echo $color
+  echo "\e[01;3`Color $1`m"
 }
 
 Background(){
-  local color="\e"
-  case $1 in
-      gray) color+="[01;40m" ;;
-      red) color+="[01;41m" ;;
-      green) color+="[01;42m" ;;
-      yellow) color+="[01;43m" ;;
-      blue) color+="[01;44m" ;;
-      magenta) color+="[01;45m" ;;
-      cyan) color+="[01;46m" ;;
-      white) color+="[01;47m" ;;
-      black) color+="[01;49m" ;;
-      *) color+="[01;49m" ;;
-  esac
-  echo $color
+  echo "\e[01;4`Color $1`m"
+}
+
+Focus(){
+  echo "\e[$1;$2;H" 
 }
 
 Rectangle(){
@@ -98,31 +114,68 @@ Rectangle(){
   local w=$(( $3 ))
   local h=$(( $4 ))
 
-  local rectangle="\e[$x;$y;H\e[1;$5"
-  for i in $( seq 1 $h ); do 
-    row=$(( i + x ))
-    for ii in $( seq 1 $w ); do 
-      rectangle+=$BLOCK
+  local rect="`Focus $x $y`\e[1;$5"
+  for r in $( seq 1 $h ); do 
+    row=$(( r + x ))
+    for c in $( seq 1 $w ); do 
+      rect+=$BLOCK
     done
-    rectangle+="\n\e[$row;$y;H"
+    rect+="\n\e[$row;$y;H"
   done
 
-  echo $rectangle
+  echo $rect
+}
+
+InputText(){
+  local x=$(( $1 + 1 ))
+  local y=$(( $2 + 1 ))
+  local w=$(( $3 ))
+
+  local dx=$(( $x + 1 ))
+  local dy=$(( $y + 1 ))
+  local dw=$(( $w - 2 ))
+
+  local widget
+  widget=$(Rectangle $x $y $w 3 `Background green`)
+  widget+=$(Rectangle $dx $dy $dw 1 `Background cyan`)
+
+  echo $widget
+}
+
+Construct(){
+  components=( `InputText 3 3 15` `InputText 7 3 15` )
+  layout=$(printf "%s" "${components[@]}")
 }
 
 Primer(){
-  bg=`Background cyan`
+  local bg=`Background cyan`
   echo -e "$bg\e[2J"
 }
 
 Render(){
-  bg=`Background cyan`
-  echo -e $rect
-  echo -en "$bg\e[${focus['y']};${focus['x']}H$FOCUS$text"
+
+  local bg=`Background cyan`
+  echo -en "$layout"
+  echo -en "$bg`Focus ${focus['y']} ${focus['x']}`$FOCUS$selected$string"
 }
 
 Resize(){
   echo -e "\e[8;$ROWS;$COLS;t"
+}
+
+Guard(){
+  OFS=$IFS
+  if [[ -e $1 || $1 == '' ]]; then
+    IFS=$1
+  else
+    IFS=$OFS
+  fi
+}
+
+Init(){
+  stty raw
+  Construct
+  Guard
 }
 
 Output(){
@@ -139,14 +192,10 @@ Spin(){
 }
 
 Start(){
-  stty raw
-  IFS=''
+  Init
   Resize
-
   Output
 }
-
-OFS=$IFS
 
 Stop(){
   IFS=$OFS
@@ -158,8 +207,5 @@ Core(){
   Spin
   Stop
 }
-
-rect=$(Rectangle 3 3 15 5 `Background green`)
-rect+=$(Rectangle 4 4 13 1 `Background cyan`)
 
 Core
