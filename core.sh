@@ -15,6 +15,7 @@ string=''
 
 selected=-1
 declare -a components=()
+declare -a focals=()
 
 Input(){
   local input=''
@@ -115,15 +116,14 @@ Rectangle(){
   local w=$(( $3 ))
   local h=$(( $4 ))
 
-  local rect="`Focus $x $y`\e[1;$5"
+  local rect="`Focus $x $y``Background $5`"
   for r in $( seq 1 $h ); do 
     row=$(( r + x ))
     for c in $( seq 1 $w ); do 
       rect+=$BLOCK
     done
-    rect+="\n\e[$row;$y;H"
+    rect+="\n`Focus $row $y`"
   done
-
   echo $rect
 }
 
@@ -137,8 +137,10 @@ InputText(){
   local dw=$(( $w - 2 ))
 
   local widget
-  widget=$(Rectangle $x $y $w 3 `Background green`)
-  widget+=$(Rectangle $dx $dy $dw 1 `Background cyan`)
+  widget=$( Rectangle $x $y $w 3 green )
+  widget+=$( Rectangle $dx $dy $dw 1 black )
+
+  focals+=$'\e[5;5;H'
 
   echo $widget
 }
@@ -150,16 +152,22 @@ Construct(){
   # echo -e "\e[27m"
 }
 
+Cursor(){
+  local bg=`Background cyan`
+  # `Focus ${focus['y']} ${focus['x']}`
+  echo -e "${focals[$selected]}"
+  echo -en "$bg$FOCUS$string"
+}
+
 Primer(){
   local bg=`Background cyan`
   echo -e "$bg\e[2J"
 }
 
 Render(){
-  echo -e `printf "%s" "${components[@]}"`
-  (( $selected > -1 )) && echo -e `printf "%s" "\e[7m${components[$selected]}\e[27m"`
-  local bg=`Background cyan`
-  echo -en "$bg`Focus ${focus['y']} ${focus['x']}`$FOCUS$selected$string"
+  echo -e "${components[@]}"
+  (( $selected > -1 )) && echo -e "\e[7m${components[$selected]}\e[27m"
+  (( $selected > -1 )) && Cursor
 }
 
 Resize(){
@@ -178,6 +186,7 @@ Guard(){
 Init(){
   stty raw
   components=( `InputText 3 3 15` `InputText 7 3 15` )
+
   Guard
 }
 
