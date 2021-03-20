@@ -13,9 +13,8 @@ action=''
 
 string=''
 
-selected=0
+selected=-1
 declare -a components=()
-layout=""
 
 Input(){
   local input=''
@@ -65,7 +64,7 @@ SelectPrev(){
 }
 
 SelectNext(){
-  (( selected < ${#components[@]} )) && selected=$(( selected + 1 ))
+  (( selected < ${#components[@]}-1 )) && selected=$(( selected + 1 ))
 }
 
 Control(){
@@ -143,7 +142,10 @@ InputText(){
 }
 
 Construct(){
+  # echo -e "\e[7m"
   layout=$(printf "%s" "${components[@]}")
+  layout2=$(printf "%s" "\e[7m${components[$selected]}\e[27m")
+  # echo -e "\e[27m"
 }
 
 Primer(){
@@ -152,8 +154,9 @@ Primer(){
 }
 
 Render(){
+  echo -e `printf "%s" "${components[@]}"`
+  (( $selected > -1 )) && echo -e `printf "%s" "\e[7m${components[$selected]}\e[27m"`
   local bg=`Background cyan`
-  echo -en "$layout"
   echo -en "$bg`Focus ${focus['y']} ${focus['x']}`$FOCUS$selected$string"
 }
 
@@ -162,22 +165,22 @@ Resize(){
 }
 
 Guard(){
-  OFS=$IFS
-  if [[ -e $1 || $1 == '' ]]; then
-    IFS=$1
-  else
+  if [[ -n $OFS && $IFS == '' ]]; then
     IFS=$OFS
+  else
+    OFS=$IFS
+    IFS=''
   fi
 }
 
 Init(){
   stty raw
   components=( `InputText 3 3 15` `InputText 7 3 15` )
-  Construct
+  Guard
 }
 
 Output(){
-  Construct
+  # Construct
   Primer
   Render
 }
