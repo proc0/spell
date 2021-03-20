@@ -93,7 +93,7 @@ Color(){
       violet) color=5 ;;
       cyan)   color=6 ;;
       white)  color=7 ;;
-      *)      color=7 ;;
+      *)      color=8 ;;
   esac
   echo $color
 }
@@ -108,6 +108,14 @@ Background(){
 
 Focus(){
   echo "\e[$1;$2;H" 
+}
+
+Civis(){
+  echo "\e[?25l" 
+}
+
+Cnorm(){
+  echo "\e[?25h" 
 }
 
 Rectangle(){
@@ -138,36 +146,35 @@ InputText(){
 
   local widget
   widget=$( Rectangle $x $y $w 3 green )
-  widget+=$( Rectangle $dx $dy $dw 1 black )
-
-  focals+=$'\e[5;5;H'
+  widget+=$( Rectangle $dx $dy $dw 1 gray )
 
   echo $widget
 }
 
-Construct(){
-  # echo -e "\e[7m"
-  layout=$(printf "%s" "${components[@]}")
-  layout2=$(printf "%s" "\e[7m${components[$selected]}\e[27m")
-  # echo -e "\e[27m"
+Layout(){
+  echo -e "${components[*]}"
+  if (( $selected > -1 )); then
+    echo -e "`Cnorm`\e[7m${components[$selected]}\e[27m"
+  else
+    echo -e "`Civis`"
+  fi
 }
 
+BG=`Background gray`
+
 Cursor(){
-  local bg=`Background cyan`
-  # `Focus ${focus['y']} ${focus['x']}`
-  echo -e "${focals[$selected]}"
-  echo -en "$bg$FOCUS$string"
+  # Move XY -> `Focus ${focus['y']} ${focus['x']}`
+  (( $selected > -1 )) && echo -e "${focals[$selected]}$BG"
+  (( ${#string} > 0 || $selected > -1 )) && echo -en "\e[7m$FOCUS$string\e[27m"
 }
 
 Primer(){
-  local bg=`Background cyan`
-  echo -e "$bg\e[2J"
+  echo -e "$BG\e[2J"
 }
 
 Render(){
-  echo -e "${components[@]}"
-  (( $selected > -1 )) && echo -e "\e[7m${components[$selected]}\e[27m"
-  (( $selected > -1 )) && Cursor
+  Layout
+  Cursor
 }
 
 Resize(){
@@ -185,13 +192,14 @@ Guard(){
 
 Init(){
   stty raw
+
   components=( `InputText 3 3 15` `InputText 7 3 15` )
+  focals=( '\e[5;6;H' '\e[9;6;H' )
 
   Guard
 }
 
 Output(){
-  # Construct
   Primer
   Render
 }
