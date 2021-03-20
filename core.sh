@@ -143,7 +143,6 @@ InputText(){
 }
 
 Construct(){
-  components=( `InputText 3 3 15` `InputText 7 3 15` )
   layout=$(printf "%s" "${components[@]}")
 }
 
@@ -153,7 +152,6 @@ Primer(){
 }
 
 Render(){
-
   local bg=`Background cyan`
   echo -en "$layout"
   echo -en "$bg`Focus ${focus['y']} ${focus['x']}`$FOCUS$selected$string"
@@ -174,11 +172,12 @@ Guard(){
 
 Init(){
   stty raw
+  components=( `InputText 3 3 15` `InputText 7 3 15` )
   Construct
-  Guard
 }
 
 Output(){
+  Construct
   Primer
   Render
 }
