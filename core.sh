@@ -82,7 +82,7 @@ Control(){
   esac
 }
 
-Color(){
+COLOR(){
   local color
   case $1 in
       gray)   color=0 ;;
@@ -99,23 +99,40 @@ Color(){
 }
 
 Foreground(){
-  echo "\e[01;3`Color $1`m"
+  echo "\e[01;3`COLOR $1`m"
 }
 
 Background(){
-  echo "\e[01;4`Color $1`m"
+  echo "\e[01;4`COLOR $1`m"
 }
 
 Focus(){
   echo "\e[$1;$2;H" 
 }
 
-Civis(){
-  echo "\e[?25l" 
+MODE(){
+  case $1 in
+    cursor) echo 25 ;;
+  esac
 }
 
-Cnorm(){
-  echo "\e[?25h" 
+ATTR(){
+  case $1 in
+    invert) echo 7 ;;
+    revert) echo 27 ;;
+  esac
+}
+
+DECReset(){
+  echo "\e[?$(MODE $1)l" 
+}
+
+DECSet(){
+  echo "\e[?$(MODE $1)h" 
+}
+
+SGRSet(){
+  echo "\e[$(ATTR $1)m"
 }
 
 Rectangle(){
@@ -152,11 +169,9 @@ InputText(){
 }
 
 Layout(){
-  echo -e "${components[*]}"
+  echo -e "${components[*]}`Focus 0 0`"
   if (( $selected > -1 )); then
-    echo -e "`Cnorm`\e[7m${components[$selected]}\e[27m"
-  else
-    echo -e "`Civis`"
+    echo -e "\e[7m${components[$selected]}\e[27m"
   fi
 }
 
@@ -165,7 +180,7 @@ BG=`Background gray`
 Cursor(){
   # Move XY -> `Focus ${focus['y']} ${focus['x']}`
   (( $selected > -1 )) && echo -e "${focals[$selected]}$BG"
-  (( ${#string} > 0 || $selected > -1 )) && echo -en "\e[7m$FOCUS$string\e[27m"
+  (( $selected > -1 )) && echo -en "$FOCUS$string"
 }
 
 Primer(){
@@ -192,10 +207,11 @@ Guard(){
 
 Init(){
   stty raw
-
+  #TODO abstract
   components=( `InputText 3 3 15` `InputText 7 3 15` )
   focals=( '\e[5;6;H' '\e[9;6;H' )
 
+  echo -e "`DECReset cursor`"
   Guard
 }
 
