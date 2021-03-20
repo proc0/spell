@@ -71,10 +71,12 @@ Control(){
   case $action in
     # UP) Retreat y ;;
     # DN) Advance y ;;
+    # LT) Retreat x ;;
+    # RT) Advance x ;;
     UP) SelectPrev ;;
     DN) SelectNext ;;
-    LT) Retreat x ;;
-    RT) Advance x ;;
+    LT) SelectPrev ;;
+    RT) SelectNext ;;
     QU) Stop ;;
   esac
 }
