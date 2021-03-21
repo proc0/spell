@@ -6,16 +6,13 @@ COLS=88
 FOCUS=▒
 BLOCK=▒
 
-declare -r -A FRAME=( ['y']=$ROWS ['x']=$COLS )
-declare -A focus=( ['x']=1 ['y']=1 )
-
 action=''
 
 string=''
 
 selected=-1
 declare -a components=()
-declare -a focals=()
+declare -a focus=()
 
 Input(){
   local input=''
@@ -36,29 +33,14 @@ Input(){
   action=$input
 }
 
-Minimum(){
-  (( focus[$1] > 1 ))
-}
-
-Maximum(){
-  (( focus[$1] < FRAME[$1] ))
-}
-
-Backward(){
-  focus[$1]=$(( ${focus[$1]}-1 ))
-}
-
-Forward(){
-  focus[$1]=$(( ${focus[$1]}+1 ))
-}
-
-Retreat(){
-  Minimum $1 && Backward $1
-}
-
-Advance(){
-  Maximum $1 && Forward $1
-}
+# declare -A mouse=( ['x']=1 ['y']=1 )
+# declare -r -A FRAME=( ['y']=$ROWS ['x']=$COLS )
+# Minimum(){ (( mouse[$1] > 1 )) }
+# Maximum(){ (( mouse[$1] < FRAME[$1] )) }
+# Backward(){ mouse[$1]=$(( ${mouse[$1]}-1 )) }
+# Forward(){ mouse[$1]=$(( ${mouse[$1]}+1 )) }
+# Retreat(){ Minimum $1 && Backward $1 }
+# Advance(){ Maximum $1 && Forward $1 }
 
 SelectPrev(){
   (( selected >= 1 )) && selected=$(( selected - 1 ))
@@ -200,7 +182,7 @@ Layout(){
 
 Cursor(){
   # Move XY -> `Focus ${focus['y']} ${focus['x']}`
-  (( $selected > -1 )) && echo -e "${focals[$selected]}$BG"
+  (( $selected > -1 )) && echo -e "${focus[$selected]}$BG"
   (( $selected > -1 )) && echo -en "$FOCUS$string"
 }
 
@@ -230,7 +212,7 @@ Init(){
   stty raw
   #TODO abstract
   components=( `Entry 3 3 15 green blah1` `Entry 7 3 15 blue blah2` )
-  focals=( '\e[5;6;H' '\e[9;6;H' )
+  focus=( '\e[5;6;H' '\e[9;6;H' )
 
   echo -e "`DECReset cursor`"
   Guard
