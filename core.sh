@@ -11,6 +11,7 @@ action=''
 string=''
 
 selected=-1
+previous=-1
 declare -a components=()
 declare -a focus=()
 
@@ -41,12 +42,15 @@ Input(){
 # Forward(){ mouse[$1]=$(( ${mouse[$1]}+1 )) }
 # Retreat(){ Minimum $1 && Backward $1 }
 # Advance(){ Maximum $1 && Forward $1 }
+# Activate -> `Focus ${focus['y']} ${focus['x']}`
 
 SelectPrev(){
+  previous=$selected
   (( selected >= 1 )) && selected=$(( selected - 1 ))
 }
 
 SelectNext(){
+  previous=$selected
   (( selected < ${#components[@]}-1 )) && selected=$(( selected + 1 ))
 }
 
@@ -67,15 +71,15 @@ Control(){
 COLOR(){
   local color
   case $1 in
-      gray)   color=0 ;;
+      black)  color=0 ;;
       red)    color=1 ;;
       green)  color=2 ;;
-      yellow) color=3 ;;
+      brown)  color=3 ;;
       blue)   color=4 ;;
       violet) color=5 ;;
       cyan)   color=6 ;;
       white)  color=7 ;;
-      *)      color=8 ;;
+      *)      color=9 ;;
   esac
   echo $color
 }
@@ -114,7 +118,7 @@ DECSet(){
 }
 
 SGRSet(){
-  echo "\e[$(ATTR $1)m"
+  echo "\e[`ATTR $1`m"
 }
 
 Rectangle(){
@@ -134,11 +138,11 @@ Rectangle(){
   echo $rect
 }
 
-Label(){
+Text(){
   echo "`Focus $1 $2`$3"
 }
 
-BG=`Background gray`
+BG=`Background black`
 
 Field(){
   local x=$(( $1 + 1 ))
@@ -148,9 +152,9 @@ Field(){
 
   local field
   if (( ${#string} > 0 )); then
-    field+="$BG`Label $x $y`$string"
+    field+="$BG`Text $x $y`$string"
   else
-    field+="$BG"
+    field+=$BG
   fi
   field+=`Rectangle $x $y $w 1 $c`
 
@@ -160,39 +164,40 @@ Field(){
 Entry(){
   local x=$(( $1 + 1 ))
   local y=$(( $2 + 1 ))
+  local tx=$(( $x + 1 ))
+  local ty=$(( $y + 1 ))
   local w=$(( $3 ))
   local c=$4
   local label=$5
 
-  local widget
-  widget=$( Rectangle $x $y $w 3 $c )
-  widget+=$( Label $(( $x + 1 )) $(( $y + 1 )) $label)
-  widget+=$( Field $x $y $w )
+  local widget="`
+    Rectangle $x $y $w 3 $c
+  ``Background $c
+  ``Text $tx $ty $label
+  ``Field $x $y $w
+  `"
 
   echo $widget
 }
 
 Layout(){
-  echo -e "${components[*]}`Focus 0 0`"
+  echo "${components[*]}${focus[$selected]}"
+}
+
+Activate(){
+  local selection
   if (( $selected > -1 )); then
-    echo -e "\e[7m${components[$selected]}\e[27m"
+    if (( $previous != $selected )); then
+      selection+="`SGRSet invert`${components[$selected]}`SGRSet revert`"
+    fi
+    selection+="${focus[$selected]}$BG\n$FOCUS$string"
   fi
-}
-
-
-Cursor(){
-  # Move XY -> `Focus ${focus['y']} ${focus['x']}`
-  (( $selected > -1 )) && echo -e "${focus[$selected]}$BG"
-  (( $selected > -1 )) && echo -en "$FOCUS$string"
-}
-
-Primer(){
-  echo -e "$BG\e[2J"
+  echo $selection
 }
 
 Render(){
-  Layout
-  Cursor
+  echo -e "$BG\e[2J`Layout`"
+  echo -en "`Activate`"
 }
 
 Resize(){
@@ -214,27 +219,22 @@ Init(){
   components=( `Entry 3 3 15 green blah1` `Entry 7 3 15 blue blah2` )
   focus=( '\e[5;6;H' '\e[9;6;H' )
 
-  echo -e "`DECReset cursor`"
+  # echo -e "`DECReset cursor`"
   Guard
-}
-
-Output(){
-  Primer
-  Render
 }
 
 Spin(){
   while [ : ]; do
     Input
     Control
-    Output
+    Render
   done
 }
 
 Start(){
   Init
   Resize
-  Output
+  Render
 }
 
 Stop(){
