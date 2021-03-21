@@ -6,6 +6,32 @@ COLS=88
 FOCUS=▒
 BLOCK=▒
 
+COLOR(){
+  local color
+  case $1 in
+    black)  color=0 ;;
+    red)    color=1 ;;
+    green)  color=2 ;;
+    brown)  color=3 ;;
+    blue)   color=4 ;;
+    violet) color=5 ;;
+    cyan)   color=6 ;;
+    white)  color=7 ;;
+    *)      color=9 ;;
+  esac
+  echo $color
+}
+
+Background(){
+  echo "\e[01;4`COLOR $1`m"
+}
+
+Foreground(){
+  echo "\e[01;3`COLOR $1`m"
+}
+
+BG=`Background black`
+
 input=''
 action=''
 selected=-1
@@ -38,7 +64,7 @@ Backward(){
     selected=$(( selected - 1 ))
 }
 
-Forward(){
+Foreward(){
   previous=$selected
   (( selected < ${#content[@]}-1 )) && \
     selected=$(( selected + 1 ))
@@ -47,39 +73,11 @@ Forward(){
 Control(){
   case $action in
     UP) Backward ;;
-    DN) Forward ;;
+    DN) Foreward ;;
     LT) Backward ;;
-    RT) Forward ;;
+    RT) Foreward ;;
     QU) Stop ;;
   esac
-}
-
-COLOR(){
-  local color
-  case $1 in
-    black)  color=0 ;;
-    red)    color=1 ;;
-    green)  color=2 ;;
-    brown)  color=3 ;;
-    blue)   color=4 ;;
-    violet) color=5 ;;
-    cyan)   color=6 ;;
-    white)  color=7 ;;
-    *)      color=9 ;;
-  esac
-  echo $color
-}
-
-Foreground(){
-  echo "\e[01;3`COLOR $1`m"
-}
-
-Background(){
-  echo "\e[01;4`COLOR $1`m"
-}
-
-Focus(){
-  echo "\e[$1;$2;H" 
 }
 
 CODE(){
@@ -91,6 +89,10 @@ CODE(){
     *)      code=0 ;;
   esac
   echo $code
+}
+
+Focus(){
+  echo "\e[$1;$2;H" 
 }
 
 Mode(){
@@ -127,8 +129,6 @@ Rectangle(){
 Text(){
   echo "`Focus $1 $2`$3"
 }
-
-BG=`Background black`
 
 Field(){
   local x=$(( $1 + 1 ))
