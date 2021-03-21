@@ -162,7 +162,6 @@ Entry(){
   ``Text $tx $ty $label
   ``Field $x $y $w
   `"
-
   echo $widget
 }
 
@@ -220,8 +219,8 @@ Start(){
 }
 
 Stop(){
-  IFS=$OFS
-  exit 0
+  Guard
+  exit
 }
 
 Core(){
