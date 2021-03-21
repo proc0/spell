@@ -116,12 +116,31 @@ Rectangle(){
   local h=$(( $4 ))
 
   local rect="`Focus $x $y``Background $5`"
-  for r in $( seq 1 $h ); do 
+  for r in $( seq 0 $h ); do 
     row=$(( r + x ))
     for c in $( seq 1 $w ); do 
       rect+=$BLOCK
     done
     rect+="\n`Focus $row $y`"
+  done
+  echo $rect
+}
+
+Text(){
+  echo "`Focus $1 $2`$3"
+}
+
+Rect(){
+  local x=$(( $1 ))
+  local y=$(( $2 ))
+  local w=$(( $3 ))
+  local h=$(( $4 ))
+
+  local rect="`Background $5`"
+  for r in $( seq 1 $h ); do 
+    row=$(( $x + $r ))
+    col=$(( $y + $r ))
+    rect+="`Focus $row $col`\e[$w;@"
   done
   echo $rect
 }
@@ -136,31 +155,34 @@ Field(){
   local w=$(( $3 - 2 ))
   local c=$4
 
-  local field
+  local field=`Rect $x $y $w 1 $c`
   if (( ${#input} > 0 )); then
-    field+="$BG`Text $x $y`$input"
-  else
-    field+=$BG
+    field+="`Text $x $y $input`"
+  # else
+  #   field+="\e[$w;@"
   fi
-  field+=`Rectangle $x $y $w 1 $c`
+  # field+=`Rect $x $y $w 1 $c`
 
   echo $field
 }
 
 Entry(){
-  local x=$(( $1 + 1 ))
-  local y=$(( $2 + 1 ))
+  local x=$(( $1 ))
+  local y=$(( $2 ))
   local tx=$(( $x + 1 ))
   local ty=$(( $y + 1 ))
   local w=$(( $3 ))
   local c=$4
-  local label=$5
+  local label="$5"
 
   local widget="`
-    Rectangle $x $y $w 3 $c
-  ``Background $c
-  ``Text $tx $ty $label
-  ``Field $x $y $w
+    Rect $x $y $w 1 $c
+  # ``Background $c
+  ``Text $(( $x+1 )) $(( $y+2 )) $label
+  ``Rect $(( $x + 1 )) $y 1 1 $c
+  ``Field $x $y $w $BG
+  ``Rect $(( $x + 1 )) $(( $y + $w - 1 )) 1 1 $c
+  ``Rect $(( $x + 2 )) $y $w 1 $c
   `"
   echo $widget
 }
@@ -169,15 +191,15 @@ Select(){
   local selection
   if (( $selected > -1 )); then
     if (( $previous != $selected )); then
-      selection+="`Term invert`${content[$selected]}`Term revert`"
+      selection+="\e[?5h${content[$selected]}"
     fi
-    selection+="${focus[$selected]}$BG\n$FOCUS$input"
+    selection+="${focus[$selected]}$BG$FOCUS$input"
   fi
   echo $selection
 }
 
 Render(){
-  echo -e "$BG\e[2J${content[*]}${focus[$selected]}"
+  echo -e "$BG\e[2J${content[*]}${focus[$selected]}$BG"
   echo -en "`Select`"
 }
 
@@ -197,8 +219,8 @@ Guard(){
 Init(){
   stty raw
   #TODO abstract
-  content=( `Entry 3 3 15 green blah1` `Entry 7 3 15 blue blah2` )
-  focus=( '\e[5;6;H' '\e[9;6;H' )
+  content=( `Entry 3 3 15 green blah1` `Entry 8 3 15 blue blah2` )
+  focus=( '\e[5;5;H' '\e[10;5;H' )
   # echo -e "`Mode reset cursor`"
   Guard
 }
