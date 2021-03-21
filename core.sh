@@ -152,18 +152,40 @@ Rectangle(){
   echo $rect
 }
 
-InputText(){
+Label(){
+  echo "`Focus $1 $2`$3"
+}
+
+BG=`Background gray`
+
+Field(){
+  local x=$(( $1 + 1 ))
+  local y=$(( $2 + 1 ))
+  local w=$(( $3 - 2 ))
+  local c=$4
+
+  local field
+  if (( ${#string} > 0 )); then
+    field+="$BG`Label $x $y`$string"
+  else
+    field+="$BG"
+  fi
+  field+=`Rectangle $x $y $w 1 $c`
+
+  echo $field
+}
+
+Entry(){
   local x=$(( $1 + 1 ))
   local y=$(( $2 + 1 ))
   local w=$(( $3 ))
-
-  local dx=$(( $x + 1 ))
-  local dy=$(( $y + 1 ))
-  local dw=$(( $w - 2 ))
+  local c=$4
+  local label=$5
 
   local widget
-  widget=$( Rectangle $x $y $w 3 green )
-  widget+=$( Rectangle $dx $dy $dw 1 gray )
+  widget=$( Rectangle $x $y $w 3 $c )
+  widget+=$( Label $(( $x + 1 )) $(( $y + 1 )) $label)
+  widget+=$( Field $x $y $w )
 
   echo $widget
 }
@@ -175,7 +197,6 @@ Layout(){
   fi
 }
 
-BG=`Background gray`
 
 Cursor(){
   # Move XY -> `Focus ${focus['y']} ${focus['x']}`
@@ -208,7 +229,7 @@ Guard(){
 Init(){
   stty raw
   #TODO abstract
-  components=( `InputText 3 3 15` `InputText 7 3 15` )
+  components=( `Entry 3 3 15 green blah1` `Entry 7 3 15 blue blah2` )
   focals=( '\e[5;6;H' '\e[9;6;H' )
 
   echo -e "`DECReset cursor`"
