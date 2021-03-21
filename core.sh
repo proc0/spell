@@ -6,60 +6,46 @@ COLS=88
 FOCUS=▒
 BLOCK=▒
 
+input=''
 action=''
-
-string=''
-
 selected=-1
 previous=-1
-declare -a components=()
 declare -a focus=()
+declare -a components=()
 
-Input(){
-  local input=''
+Listen(){
+  local intent=''
   local key
   read -n1 -r key
   case $key in
     $'\e') 
       read -n2 -r -t.001 key
       case $key in
-        '[A') input=UP ;;
-        '[B') input=DN ;;
-        '[C') input=RT ;;
-        '[D') input=LT ;;
-           *) input=QU ;;
+        '[A') intent=UP ;;
+        '[B') intent=DN ;;
+        '[C') intent=RT ;;
+        '[D') intent=LT ;;
+           *) intent=QU ;;
       esac;;
-    *) string+=$key ;;
+    *) input+=$key ;;
   esac
-  action=$input
+  action=$intent
 }
-
-# declare -A mouse=( ['x']=1 ['y']=1 )
-# declare -r -A FRAME=( ['y']=$ROWS ['x']=$COLS )
-# Minimum(){ (( mouse[$1] > 1 )) }
-# Maximum(){ (( mouse[$1] < FRAME[$1] )) }
-# Backward(){ mouse[$1]=$(( ${mouse[$1]}-1 )) }
-# Forward(){ mouse[$1]=$(( ${mouse[$1]}+1 )) }
-# Retreat(){ Minimum $1 && Backward $1 }
-# Advance(){ Maximum $1 && Forward $1 }
-# Activate -> `Focus ${focus['y']} ${focus['x']}`
 
 SelectPrev(){
   previous=$selected
-  (( selected >= 1 )) && selected=$(( selected - 1 ))
+  (( selected >= 1 )) && \
+    selected=$(( selected - 1 ))
 }
 
 SelectNext(){
   previous=$selected
-  (( selected < ${#components[@]}-1 )) && selected=$(( selected + 1 ))
+  (( selected < ${#components[@]}-1 )) && \
+    selected=$(( selected + 1 ))
 }
 
 Control(){
   case $action in
-    # UP) Retreat y ;;
-    # DN) Advance y ;;
-    # LT) Retreat x ;;
-    # RT) Advance x ;;
     UP) SelectPrev ;;
     DN) SelectNext ;;
     LT) SelectPrev ;;
@@ -151,8 +137,8 @@ Field(){
   local c=$4
 
   local field
-  if (( ${#string} > 0 )); then
-    field+="$BG`Text $x $y`$string"
+  if (( ${#input} > 0 )); then
+    field+="$BG`Text $x $y`$input"
   else
     field+=$BG
   fi
@@ -180,23 +166,19 @@ Entry(){
   echo $widget
 }
 
-Layout(){
-  echo "${components[*]}${focus[$selected]}"
-}
-
 Activate(){
   local selection
   if (( $selected > -1 )); then
     if (( $previous != $selected )); then
       selection+="`SGRSet invert`${components[$selected]}`SGRSet revert`"
     fi
-    selection+="${focus[$selected]}$BG\n$FOCUS$string"
+    selection+="${focus[$selected]}$BG\n$FOCUS$input"
   fi
   echo $selection
 }
 
 Render(){
-  echo -e "$BG\e[2J`Layout`"
+  echo -e "$BG\e[2J${components[*]}${focus[$selected]}"
   echo -en "`Activate`"
 }
 
@@ -225,7 +207,7 @@ Init(){
 
 Spin(){
   while [ : ]; do
-    Input
+    Listen
     Control
     Render
   done
