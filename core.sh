@@ -22,21 +22,41 @@ COLOR(){
   echo $color
 }
 
+ROLOC(){
+  local roloc
+  case $1 in
+    black)  roloc=white ;;
+    red)    roloc=green ;;
+    green)  roloc=red ;;
+    brown)  roloc=blue ;;
+    blue)   roloc=brown ;;
+    violet) roloc=cyan ;;
+    cyan)   roloc=violet ;;
+    white)  roloc=white ;;
+    *)      roloc=white ;;
+  esac
+  echo $roloc  
+}
+
 Background(){
-  echo "\e[01;4`COLOR $1`m"
+  echo "\e[4`COLOR $1`m"
 }
 
 Foreground(){
-  echo "\e[01;3`COLOR $1`m"
+  echo "\e[3`COLOR $1`m"
 }
 
-BG=`Background black`
+_BG=black
+_FG=white
+BG=`Background $_BG`
+FG=`Foreground $_FG`
 
 input=''
 action=''
 selected=-1
 previous=-1
 declare -a focus=()
+declare -a focused=()
 declare -a content=()
 
 Listen(){
@@ -83,6 +103,7 @@ Control(){
 CODE(){
   local code
   case $1 in
+    insert) code=4 ;;
     invert) code=7 ;;
     cursor) code=25 ;;
     revert) code=27 ;;
@@ -127,7 +148,7 @@ Rectangle(){
 }
 
 Text(){
-  echo "`Focus $1 $2`$3"
+  echo "`Foreground $3``Focus $1 $2`$4"
 }
 
 Rect(){
@@ -139,14 +160,10 @@ Rect(){
   local rect="`Background $5`"
   for r in $( seq 1 $h ); do 
     row=$(( $x + $r ))
-    col=$(( $y + $r ))
-    rect+="`Focus $row $col`\e[$w;@"
+    rect+="\e[4h`Focus $row $y`\e[$w;@\e[4l"
   done
+  # rect+="\e[4l"
   echo $rect
-}
-
-Text(){
-  echo "`Focus $1 $2`$3"
 }
 
 Field(){
@@ -154,10 +171,11 @@ Field(){
   local y=$(( $2 + 1 ))
   local w=$(( $3 - 2 ))
   local c=$4
+  local c1=$5
 
   local field=`Rect $x $y $w 1 $c`
   if (( ${#input} > 0 )); then
-    field+="`Text $x $y $input`"
+    field+="`Text $x $y $c1 $input`"
   # else
   #   field+="\e[$w;@"
   fi
@@ -173,16 +191,16 @@ Entry(){
   local ty=$(( $y + 1 ))
   local w=$(( $3 ))
   local c=$4
-  local label="$5"
+  local c1=`ROLOC $4`
+  local label=$5
 
   local widget="`
-    Rect $x $y $w 1 $c
-  # ``Background $c
-  ``Text $(( $x+1 )) $(( $y+2 )) $label
-  ``Rect $(( $x + 1 )) $y 1 1 $c
-  ``Field $x $y $w $BG
-  ``Rect $(( $x + 1 )) $(( $y + $w - 1 )) 1 1 $c
-  ``Rect $(( $x + 2 )) $y $w 1 $c
+    Rect $x $y $w 2 $c
+  ``Text $(( $x+2 )) $(( $y+1 )) $c1 $label
+  ``Rect $(( $x + 2 )) $y 1 1 $c
+  ``Field $(( $x + 2 )) $y $w $_BG $_FG
+  ``Rect $(( $x + 2 )) $(( $y + $w - 1 )) 1 1 $c
+  ``Rect $(( $x + 3 )) $y $w 1 $c
   `"
   echo $widget
 }
@@ -190,16 +208,28 @@ Entry(){
 Select(){
   local selection
   if (( $selected > -1 )); then
-    if (( $previous != $selected )); then
-      selection+="\e[?5h${content[$selected]}"
-    fi
+    # if (( $previous != $selected )); then
+    #   selection+="\e[2J${focused[$selected]}"
+    # fi
     selection+="${focus[$selected]}$BG$FOCUS$input"
   fi
   echo $selection
 }
 
 Render(){
-  echo -e "$BG\e[2J${content[*]}${focus[$selected]}$BG"
+  local layout
+  if (( $selected > -1 )); then
+    for i in "${!content[@]}"; do
+      if (( $selected == $i )); then
+        layout+="${focused[$i]}"
+      else
+        layout+="${content[$i]}"
+      fi
+    done
+  else
+    layout="${content[*]}"
+  fi
+  echo -e "$BG\e[2J$layout${focus[$selected]}$BG$FG"
   echo -en "`Select`"
 }
 
@@ -219,8 +249,9 @@ Guard(){
 Init(){
   stty raw
   #TODO abstract
-  content=( `Entry 3 3 15 green blah1` `Entry 8 3 15 blue blah2` )
-  focus=( '\e[5;5;H' '\e[10;5;H' )
+  content=( `Entry 3 3 15 red blah1` `Entry 8 3 15 blue blah2` )
+  focused=( `Entry 3 3 15 cyan blah1` `Entry 8 3 15 cyan blah2` )
+  focus=( '\e[6;5;H' '\e[11;5;H' )
   # echo -e "`Mode reset cursor`"
   Guard
 }
