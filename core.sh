@@ -11,7 +11,7 @@ action=''
 selected=-1
 previous=-1
 declare -a focus=()
-declare -a components=()
+declare -a content=()
 
 Listen(){
   local intent=''
@@ -32,24 +32,24 @@ Listen(){
   action=$intent
 }
 
-SelectPrev(){
+Backward(){
   previous=$selected
   (( selected >= 1 )) && \
     selected=$(( selected - 1 ))
 }
 
-SelectNext(){
+Forward(){
   previous=$selected
-  (( selected < ${#components[@]}-1 )) && \
+  (( selected < ${#content[@]}-1 )) && \
     selected=$(( selected + 1 ))
 }
 
 Control(){
   case $action in
-    UP) SelectPrev ;;
-    DN) SelectNext ;;
-    LT) SelectPrev ;;
-    RT) SelectNext ;;
+    UP) Backward ;;
+    DN) Forward ;;
+    LT) Backward ;;
+    RT) Forward ;;
     QU) Stop ;;
   esac
 }
@@ -57,15 +57,15 @@ Control(){
 COLOR(){
   local color
   case $1 in
-      black)  color=0 ;;
-      red)    color=1 ;;
-      green)  color=2 ;;
-      brown)  color=3 ;;
-      blue)   color=4 ;;
-      violet) color=5 ;;
-      cyan)   color=6 ;;
-      white)  color=7 ;;
-      *)      color=9 ;;
+    black)  color=0 ;;
+    red)    color=1 ;;
+    green)  color=2 ;;
+    brown)  color=3 ;;
+    blue)   color=4 ;;
+    violet) color=5 ;;
+    cyan)   color=6 ;;
+    white)  color=7 ;;
+    *)      color=9 ;;
   esac
   echo $color
 }
@@ -82,29 +82,29 @@ Focus(){
   echo "\e[$1;$2;H" 
 }
 
-MODE(){
+CODE(){
+  local code
   case $1 in
-    cursor) echo 25 ;;
+    invert) code=7 ;;
+    cursor) code=25 ;;
+    revert) code=27 ;;
+    *)      code=0 ;;
   esac
+  echo $code
 }
 
-ATTR(){
-  case $1 in
-    invert) echo 7 ;;
-    revert) echo 27 ;;
-  esac
+Mode(){
+  local mode
+  if [[ $1 == '' || $1 == 'set' ]]; then
+    mode=h
+  elif [[ $1 == 'reset' ]]; then
+    mode=l
+  fi
+  echo "\e[?$(CODE $1)$mode" 
 }
 
-DECReset(){
-  echo "\e[?$(MODE $1)l" 
-}
-
-DECSet(){
-  echo "\e[?$(MODE $1)h" 
-}
-
-SGRSet(){
-  echo "\e[`ATTR $1`m"
+Term(){
+  echo "\e[`CODE $1`m"
 }
 
 Rectangle(){
@@ -165,11 +165,11 @@ Entry(){
   echo $widget
 }
 
-Activate(){
+Select(){
   local selection
   if (( $selected > -1 )); then
     if (( $previous != $selected )); then
-      selection+="`SGRSet invert`${components[$selected]}`SGRSet revert`"
+      selection+="`Term invert`${content[$selected]}`Term revert`"
     fi
     selection+="${focus[$selected]}$BG\n$FOCUS$input"
   fi
@@ -177,8 +177,8 @@ Activate(){
 }
 
 Render(){
-  echo -e "$BG\e[2J${components[*]}${focus[$selected]}"
-  echo -en "`Activate`"
+  echo -e "$BG\e[2J${content[*]}${focus[$selected]}"
+  echo -en "`Select`"
 }
 
 Resize(){
@@ -197,10 +197,9 @@ Guard(){
 Init(){
   stty raw
   #TODO abstract
-  components=( `Entry 3 3 15 green blah1` `Entry 7 3 15 blue blah2` )
+  content=( `Entry 3 3 15 green blah1` `Entry 7 3 15 blue blah2` )
   focus=( '\e[5;6;H' '\e[9;6;H' )
-
-  # echo -e "`DECReset cursor`"
+  # echo -e "`Mode reset cursor`"
   Guard
 }
 
@@ -216,6 +215,8 @@ Start(){
   Init
   Resize
   Render
+  echo -e "`Focus 0 0`"
+
 }
 
 Stop(){
