@@ -139,7 +139,10 @@ Rect(){
 
   local rect="`Background $5`"
   for r in $( seq 1 $h ); do 
-    rect+="\e[4h`Focus $(( $x+$r )) $y`\e[$w;@\e[4l"
+    rect+=`Mode insert`
+    rect+=`Focus $(( $x+$r )) $y`
+    rect+="\e[$w;@"
+    rect+=`Mode reset insert`
   done
 
   echo $rect
