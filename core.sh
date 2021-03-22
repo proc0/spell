@@ -23,19 +23,19 @@ COLOR(){
 }
 
 ACTIVE(){
-  local roloc
+  local active
   case $1 in
-    black)  roloc=white ;;
-    red)    roloc=green ;;
-    green)  roloc=red ;;
-    brown)  roloc=blue ;;
-    blue)   roloc=brown ;;
-    violet) roloc=cyan ;;
-    cyan)   roloc=violet ;;
-    white)  roloc=white ;;
-    *)      roloc=white ;;
+    black)  active=white ;;
+    red)    active=green ;;
+    green)  active=red ;;
+    brown)  active=blue ;;
+    blue)   active=brown ;;
+    violet) active=cyan ;;
+    cyan)   active=black ;;
+    white)  active=white ;;
+    *)      active=white ;;
   esac
-  echo $roloc  
+  echo $active  
 }
 
 Background(){
@@ -188,7 +188,7 @@ Form(){
   for idx in $( seq 4 $# ); do
     local i=$(($idx-4))
     content[$i]=`Entry $(( $x + 5*$i )) $y $w blue "${!idx}"`
-    focused[$i]=`Entry $(( $x + 5*$i )) $y $w red "${!idx}"`
+    focused[$i]=`Entry $(( $x + 5*$i )) $y $w cyan "${!idx}"`
   done
 }
 
@@ -208,9 +208,8 @@ Layout(){
   echo $layout
 }
 
-Select(){
+Cursor(){
   local selection
-  local active
   if (( $selected > -1 )); then
     # focused element has its focus at the end
     selection+="$BG\e${content[$selected]##*e}$input"
@@ -220,7 +219,7 @@ Select(){
 
 Render(){
   echo -e "$BG\e[2J`Layout`${focus[$selected]}$FG"
-  echo -en "`Select`"
+  echo -en "`Cursor`"
 }
 
 Resize(){
