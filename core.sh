@@ -3,8 +3,8 @@
 ROWS=44
 COLS=88
 
-FOCUS=▒
-BLOCK=▒
+_BG=black
+_FG=white
 
 COLOR(){
   local color
@@ -22,7 +22,7 @@ COLOR(){
   echo $color
 }
 
-ROLOC(){
+ACTIVE(){
   local roloc
   case $1 in
     black)  roloc=white ;;
@@ -46,8 +46,6 @@ Foreground(){
   echo "\e[3`COLOR $1`m"
 }
 
-_BG=black
-_FG=white
 BG=`Background $_BG`
 FG=`Foreground $_FG`
 
@@ -134,10 +132,10 @@ Text(){
 }
 
 Rect(){
-  local x=$(( $1 ))
-  local y=$(( $2 ))
-  local w=$(( $3 ))
-  local h=$(( $4 ))
+  local x=$1
+  local y=$2
+  local w=$3
+  local h=$4
 
   local rect="`Background $5`"
   for r in $( seq 1 $h ); do 
@@ -169,7 +167,7 @@ Entry(){
   local ty=$(( $y + 1 ))
   local w=$(( $3 ))
   local bg=$4
-  local fc=`ROLOC $4`
+  local fc=`ACTIVE $4`
   local label=$5
 
   local top=`Rect $x $y $w 2 $bg`
@@ -186,11 +184,11 @@ Form(){
   local x=$1; 
   local y=$2;
   local w=$3;
-
-  for arg in $( seq 4 $# ); do
-    local i=$(($arg-4))
-    content[$i]=`Entry $(( $x + 5*$i )) $y $w blue "${!arg}"`
-    focused[$i]=`Entry $(( $x + 5*$i )) $y $w red "${!arg}"`
+  local idx
+  for idx in $( seq 4 $# ); do
+    local i=$(($idx-4))
+    content[$i]=`Entry $(( $x + 5*$i )) $y $w blue "${!idx}"`
+    focused[$i]=`Entry $(( $x + 5*$i )) $y $w red "${!idx}"`
   done
 }
 
@@ -215,19 +213,22 @@ Select(){
   local active
   if (( $selected > -1 )); then
     # focused element has its focus at the end
-    selection+="$BG\e${content[$selected]##*e}$FOCUS$input"
+    selection+="$BG\e${content[$selected]##*e}$input"
   fi
   echo $selection
 }
 
 Render(){
-
   echo -e "$BG\e[2J`Layout`${focus[$selected]}$FG"
   echo -en "`Select`"
 }
 
 Resize(){
   echo -e "\e[8;$ROWS;$COLS;t"
+}
+
+Blurr(){
+  echo -e "`Focus 0 0`"
 }
 
 Guard(){
@@ -241,12 +242,8 @@ Guard(){
 
 Init(){
   stty raw
-  Form 3 3 15 blah1 blah3 some stuff glaaxy
+  Form 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
-  #TODO abstract
-  # content=( `Entry 3 3 15 red blah1` `Entry 8 3 15 blue blah2` )
-  # focused=( `Entry 3 3 15 cyan blah1` `Entry 8 3 15 cyan blah2` )
-
 }
 
 Spin(){
@@ -261,7 +258,7 @@ Start(){
   Init
   Resize
   Render
-  echo -e "`Focus 0 0`"
+  Blurr
 }
 
 Stop(){
