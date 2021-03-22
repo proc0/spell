@@ -55,7 +55,6 @@ input=''
 action=''
 selected=-1
 previous=-1
-declare -a focus=()
 declare -a focused=()
 declare -a content=()
 
@@ -80,14 +79,14 @@ Listen(){
 
 Backward(){
   previous=$selected
-  (( selected >= 1 )) && \
-    selected=$(( selected - 1 ))
+  (( selected >= 1 )) \
+    && selected=$(( selected - 1 ))
 }
 
 Foreward(){
   previous=$selected
-  (( selected < ${#content[@]}-1 )) && \
-    selected=$(( selected + 1 ))
+  (( selected < ${#content[@]}-1 )) \
+    && selected=$(( selected + 1 ))
 }
 
 Control(){
@@ -130,23 +129,6 @@ Term(){
   echo "\e[`CODE $1`m"
 }
 
-Rectangle(){
-  local x=$(( $1 + 1 ))
-  local y=$(( $2 + 1 ))
-  local w=$(( $3 ))
-  local h=$(( $4 ))
-
-  local rect="`Focus $x $y``Background $5`"
-  for r in $( seq 0 $h ); do 
-    row=$(( r + x ))
-    for c in $( seq 1 $w ); do 
-      rect+=$BLOCK
-    done
-    rect+="\n`Focus $row $y`"
-  done
-  echo $rect
-}
-
 Text(){
   echo "`Foreground $3``Focus $1 $2`$4"
 }
@@ -159,10 +141,9 @@ Rect(){
 
   local rect="`Background $5`"
   for r in $( seq 1 $h ); do 
-    row=$(( $x + $r ))
-    rect+="\e[4h`Focus $row $y`\e[$w;@\e[4l"
+    rect+="\e[4h`Focus $(( $x+$r )) $y`\e[$w;@\e[4l"
   done
-  # rect+="\e[4l"
+
   echo $rect
 }
 
@@ -170,16 +151,13 @@ Field(){
   local x=$(( $1 + 1 ))
   local y=$(( $2 + 1 ))
   local w=$(( $3 - 2 ))
-  local c=$4
-  local c1=$5
+  local bg=$4
+  local fc=$5
 
-  local field=`Rect $x $y $w 1 $c`
+  local field=`Rect $x $y $w 1 $bg`
   if (( ${#input} > 0 )); then
-    field+="`Text $x $y $c1 $input`"
-  # else
-  #   field+="\e[$w;@"
+    field+=`Text $x $y $fc $input`
   fi
-  # field+=`Rect $x $y $w 1 $c`
 
   echo $field
 }
@@ -190,33 +168,21 @@ Entry(){
   local tx=$(( $x + 1 ))
   local ty=$(( $y + 1 ))
   local w=$(( $3 ))
-  local c=$4
-  local c1=`ROLOC $4`
+  local bg=$4
+  local fc=`ROLOC $4`
   local label=$5
 
-  local widget="`
-    Rect $x $y $w 2 $c
-  ``Text $(( $x+2 )) $(( $y+1 )) $c1 $label
-  ``Rect $(( $x + 2 )) $y 1 1 $c
-  ``Field $(( $x + 2 )) $y $w $_BG $_FG
-  ``Rect $(( $x + 2 )) $(( $y + $w - 1 )) 1 1 $c
-  ``Rect $(( $x + 3 )) $y $w 1 $c
-  `"
-  echo $widget
+  local top=`Rect $x $y $w 2 $bg`
+  local lb=`Text $(( $x+2 )) $(( $y+1 )) $fc $label`
+  local cap1=`Rect $(( $x + 2 )) $y 1 1 $bg`
+  local inp=`Field $(( $x + 2 )) $y $w $_BG $_FG`
+  local cap2=`Rect $(( $x + 2 )) $(( $y + $w - 1 )) 1 1 $bg`
+  local bott=`Rect $(( $x + 3 )) $y $w 1 $bg`
+  # attaching focus for input, at the end of command
+  echo "$top\n$lb\n$cap1\n$inp\n$cap2\n$bott`Focus $(( $x+3 )) $(( $y+1 ))`"
 }
 
-Select(){
-  local selection
-  if (( $selected > -1 )); then
-    # if (( $previous != $selected )); then
-    #   selection+="\e[2J${focused[$selected]}"
-    # fi
-    selection+="${focus[$selected]}$BG$FOCUS$input"
-  fi
-  echo $selection
-}
-
-Render(){
+Layout(){
   local layout
   if (( $selected > -1 )); then
     for i in "${!content[@]}"; do
@@ -229,7 +195,22 @@ Render(){
   else
     layout="${content[*]}"
   fi
-  echo -e "$BG\e[2J$layout${focus[$selected]}$BG$FG"
+  echo $layout
+}
+
+Select(){
+  local selection
+  local active
+  if (( $selected > -1 )); then
+    # focused element has its focus at the end
+    selection+="$BG\e${content[$selected]##*e}$FOCUS$input"
+  fi
+  echo $selection
+}
+
+Render(){
+
+  echo -e "$BG\e[2J`Layout`${focus[$selected]}$FG"
   echo -en "`Select`"
 }
 
@@ -251,8 +232,7 @@ Init(){
   #TODO abstract
   content=( `Entry 3 3 15 red blah1` `Entry 8 3 15 blue blah2` )
   focused=( `Entry 3 3 15 cyan blah1` `Entry 8 3 15 cyan blah2` )
-  focus=( '\e[6;5;H' '\e[11;5;H' )
-  # echo -e "`Mode reset cursor`"
+
   Guard
 }
 
@@ -269,7 +249,6 @@ Start(){
   Resize
   Render
   echo -e "`Focus 0 0`"
-
 }
 
 Stop(){
