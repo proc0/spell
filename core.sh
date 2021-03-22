@@ -182,6 +182,18 @@ Entry(){
   echo "$top\n$lb\n$cap1\n$inp\n$cap2\n$bott`Focus $(( $x+3 )) $(( $y+1 ))`"
 }
 
+Form(){
+  local x=$1; 
+  local y=$2;
+  local w=$3;
+
+  for arg in $( seq 4 $# ); do
+    local i=$(($arg-4))
+    content[$i]=`Entry $(( $x + 5*$i )) $y $w blue "${!arg}"`
+    focused[$i]=`Entry $(( $x + 5*$i )) $y $w red "${!arg}"`
+  done
+}
+
 Layout(){
   local layout
   if (( $selected > -1 )); then
@@ -229,11 +241,12 @@ Guard(){
 
 Init(){
   stty raw
-  #TODO abstract
-  content=( `Entry 3 3 15 red blah1` `Entry 8 3 15 blue blah2` )
-  focused=( `Entry 3 3 15 cyan blah1` `Entry 8 3 15 cyan blah2` )
-
+  Form 3 3 15 blah1 blah3 some stuff glaaxy
   Guard
+  #TODO abstract
+  # content=( `Entry 3 3 15 red blah1` `Entry 8 3 15 blue blah2` )
+  # focused=( `Entry 3 3 15 cyan blah1` `Entry 8 3 15 cyan blah2` )
+
 }
 
 Spin(){
