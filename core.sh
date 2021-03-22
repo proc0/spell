@@ -139,10 +139,10 @@ Rect(){
 
   local rect=`Background $5`
   for r in $( seq 1 $h ); do 
-    rect+=`Mode insert`
+    # rect+=`Mode insert`
     rect+=`Focus $(( $x+$r )) $y`
     rect+="\e[$w;@"
-    rect+=`Mode reset insert`
+    # rect+=`Mode reset insert`
   done
 
   echo $rect
@@ -215,18 +215,19 @@ Cursor(){
   local selection
   if (( $selected > -1 )); then
     # focused element has its focus at the end
-    selection+="$BG\e${content[$selected]##*e}$input"
+    selection+="\e${content[$selected]##*e}$input"
   fi
   echo $selection
 }
 
 Render(){
-  echo -e "$BG\e[2J`Layout`${focus[$selected]}$FG"
+  echo -e "$BG\e[2J`Layout`${focus[$selected]}$FG$BG"
   echo -en "`Cursor`"
 }
 
 Resize(){
   echo -e "\e[8;$ROWS;$COLS;t"
+  echo -e "\e[1;$ROWS;r"
 }
 
 Blurr(){
@@ -243,7 +244,7 @@ Guard(){
 }
 
 Init(){
-  stty raw
+  stty sane
   Form 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
 }
@@ -264,7 +265,9 @@ Start(){
 }
 
 Stop(){
+  stty sane
   Guard
+  clear
   exit
 }
 
