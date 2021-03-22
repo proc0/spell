@@ -137,7 +137,7 @@ Rect(){
   local w=$3
   local h=$4
 
-  local rect="`Background $5`"
+  local rect=`Background $5`
   for r in $( seq 1 $h ); do 
     rect+=`Mode insert`
     rect+=`Focus $(( $x+$r )) $y`
