@@ -129,6 +129,7 @@ Focus(){
   echo "\e[$1;$2;H" 
 }
 
+
 Text(){
   echo "`Foreground $3``Focus $1 $2`$4"
 }
@@ -223,6 +224,10 @@ Cursor(){
   echo $cursor
 }
 
+Blur(){
+  echo -e "`Focus 0 0`"
+}
+
 Render(){
   local focus=$1
   local context=$2
@@ -230,6 +235,13 @@ Render(){
   local fg=`Foreground $FG`
   echo -e "$bg\e[2J`Layout $focus`$fg$bg"
   echo -en "`Cursor $focus $context`"
+}
+
+Setup(){
+  # local setup="`Resize`"
+  local setup="\e[8;$ROWS;$COLS;t"
+  setup+="\e[1;$ROWS;r"
+  echo -e $setup
 }
 
 Resize(){
@@ -249,17 +261,6 @@ Resize(){
   echo "\e[8;$hsize;$wsize;t"
 }
 
-Setup(){
-  # local setup="`Resize`"
-  local setup="\e[8;$ROWS;$COLS;t"
-  setup+="\e[1;$ROWS;r"
-  echo -e $setup
-}
-
-Blurr(){
-  echo -e "`Focus 0 0`"
-}
-
 Guard(){
   if [[ -n $OFS ]]; then
     IFS=$OFS
@@ -276,7 +277,7 @@ Guard(){
   fi
 }
 
-Init(){
+Begin(){
   Form 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
   stty raw min 0 time 0
@@ -302,10 +303,10 @@ Spin(){
 }
 
 Start(){
-  Init
+  Begin
   Setup
   Render
-  Blurr
+  Blur
 }
 
 Stop(){
