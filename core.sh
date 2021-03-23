@@ -105,10 +105,10 @@ Listen(){
     $'\e') 
       read -n2 -r -t.001 intent
       case $intent in
-        '[A') input=UP ;;
-        '[B') input=DN ;;
-        '[C') input=RT ;;
-        '[D') input=LT ;;
+        [A) input=UP ;;
+        [B) input=DN ;;
+        [C) input=RT ;;
+        [D) input=LT ;;
            *) input=QU ;;
       esac;;
     *) (( ${#intent} > 0 )) && input="IN$intent" ;;
@@ -211,6 +211,7 @@ Layout(){
   local focus=$1
   local fg=$2
   local bg=$3
+
   local layout
   if (( focus > -1 )); then
     for i in ${!content[@]}; do
@@ -223,7 +224,10 @@ Layout(){
   else
     layout=${content[*]}
   fi
+
   echo -e "$bg\e[2J$layout$fg$bg"
+
+  return 0
 }
 
 Render(){
@@ -240,6 +244,8 @@ Render(){
   if (( ${#context} > 0 && focus > -1 )); then 
     echo -en "\e${focused[$focus]##*e}$context"
   fi
+
+  return 0
 }
 
 # SETUP
@@ -309,6 +315,7 @@ Spin(){
   local context=''
   local fg=$1
   local bg=$2
+
   while [ : ]; do
     input=`Listen`
     if [[ -n $input ]]; then
@@ -316,12 +323,14 @@ Spin(){
       case $action in
         -2) buffer=${input:2};
             context+=$buffer ;;
-        -9) break ;;
+        -9) break; Stop ;;
          *) blur=$focus; focus=$action ;;
       esac
       Render $focus $blur $context $fg $bg
     fi
   done
+  
+  return 0
 }
 
 Stop(){
@@ -343,4 +352,5 @@ Core(){
 
 # RUN
 ###########
+trap 'Stop' HUP INT QUIT TERM
 Core
