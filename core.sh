@@ -213,23 +213,23 @@ Layout(){
 }
 
 Cursor(){
-  local this=$1
-  local text=$2
+  local focus=$1
+  local context=$2
   local cursor
-  if (( this > -1 )); then
-    local focal="\e${content[$this]##*e}"
-    cursor+="$focal$text"
+  if (( focus > -1 )); then
+    local focal="\e${content[$focus]##*e}"
+    cursor+="$focal$context"
   fi
   echo $cursor
 }
 
 Render(){
-  local this=$1
-  local text=$2
+  local focus=$1
+  local context=$2
   local bg=`Background $BG`
   local fg=`Foreground $FG`
-  echo -e "$bg\e[2J`Layout $this`$fg$bg"
-  echo -en "`Cursor $this $text`"
+  echo -e "$bg\e[2J`Layout $focus`$fg$bg"
+  echo -en "`Cursor $focus $context`"
 }
 
 Resize(){
@@ -261,42 +261,43 @@ Blurr(){
 }
 
 Guard(){
-  if [[ -n $OFS && $IFS == '' ]]; then
+  if [[ -n $OFS ]]; then
     IFS=$OFS
   else
     OFS=$IFS
-    IFS=''
+    IFS=
   fi
 
   if [[ -n $OTTY ]]; then
     stty $OTTY
+    OTTY=
   else
     OTTY=$(stty -g)
   fi
 }
 
 Init(){
-  stty raw min 0 time 0
   Form 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
+  stty raw min 0 time 0
 }
 
 Spin(){
-  local select=-1
-  local action=''
+  local focus=-1
   local intent=''
+  local action=''
   local input=''
-  local text=''
+  local context=''
   while [ : ]; do
     intent=`Listen`
-    action=`Control $intent $select`
+    action=`Control $intent $focus`
     case $action in
       -2) input=${intent:2};
-          text+=$input ;;
+          context+=$input ;;
       -9) break; Stop ;;
-       *) select=$action ;;
+       *) focus=$action ;;
     esac
-    Render $select $text
+    Render $focus $context
   done
 }
 
@@ -308,7 +309,6 @@ Start(){
 }
 
 Stop(){
-  stty sane
   Guard
   clear
   exit
