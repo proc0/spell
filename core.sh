@@ -51,25 +51,6 @@ Foreground(){
   echo "\e[3`COLOR $1`m"
 }
 
-Listen(){
-  local intent=''
-  local input
-  read -n1 -r input
-  case $input in
-    $'\e') 
-      read -n2 -r -t.001 input
-      case $input in
-        '[A') intent=UP ;;
-        '[B') intent=DN ;;
-        '[C') intent=RT ;;
-        '[D') intent=LT ;;
-           *) intent=QU ;;
-      esac;;
-    *) intent="IN$input" ;;
-  esac
-  echo $intent
-}
-
 Backward(){
   local vector=$1
   if (( vector >= 1 )); then
@@ -84,19 +65,6 @@ Foreward(){
     vector=$(( vector + 1 ))
   fi
   echo $vector
-}
-
-Control(){
-  local action=$2
-  case $1 in
-    UP) action=`Backward $2` ;;
-    DN) action=`Foreward $2` ;;
-    LT) action=`Backward $2` ;;
-    RT) action=`Foreward $2` ;;
-    IN*) action=-2 ;;
-    QU) action=-9 ;;
-  esac
-  echo $action
 }
 
 # CODE(){
@@ -125,10 +93,47 @@ Control(){
 #   echo "\e[`CODE $1`m"
 # }
 
+# EVENT
+###########
+
+Listen(){
+  local intent=''
+  local input
+  read -n1 -r input
+  case $input in
+    $'\e') 
+      read -n2 -r -t.001 input
+      case $input in
+        '[A') intent=UP ;;
+        '[B') intent=DN ;;
+        '[C') intent=RT ;;
+        '[D') intent=LT ;;
+           *) intent=QU ;;
+      esac;;
+    *) intent="IN$input" ;;
+  esac
+  echo $intent
+}
+
+Control(){
+  local action=$2
+  case $1 in
+    UP) action=`Backward $2` ;;
+    DN) action=`Foreward $2` ;;
+    LT) action=`Backward $2` ;;
+    RT) action=`Foreward $2` ;;
+    IN*) action=-2 ;;
+    QU) action=-9 ;;
+  esac
+  echo $action
+}
+
 Focus(){
   echo "\e[$1;$2;H" 
 }
 
+# BUILD UI
+###########
 
 Text(){
   echo "`Foreground $3``Focus $1 $2`$4"
@@ -196,6 +201,8 @@ Form(){
   done
 }
 
+# OUTPUT UI
+###########
 Layout(){
   local select=$1
   local layout
@@ -237,6 +244,9 @@ Render(){
   echo -en "`Cursor $focus $context`"
 }
 
+
+# SETUP
+###########
 Setup(){
   # local setup="`Resize`"
   local setup="\e[8;$ROWS;$COLS;t"
@@ -277,6 +287,9 @@ Guard(){
   fi
 }
 
+
+# MAIN
+###########
 Begin(){
   Form 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
@@ -321,4 +334,7 @@ Core(){
   Stop
 }
 
+
+# RUN
+###########
 Core
