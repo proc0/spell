@@ -14,15 +14,15 @@ declare -a content=()
 COLOR(){
   local value
   case $1 in
-    black)  value=0 ;;
-    red)    value=1 ;;
-    green)  value=2 ;;
-    brown)  value=3 ;;
-    blue)   value=4 ;;
+    black) value=0 ;;
+    red) value=1 ;;
+    green) value=2 ;;
+    brown) value=3 ;;
+    blue) value=4 ;;
     violet) value=5 ;;
-    cyan)   value=6 ;;
-    white)  value=7 ;;
-    *)      value=9 ;;
+    cyan) value=6 ;;
+    white) value=7 ;;
+    *) value=9 ;;
   esac
   echo $value
 }
@@ -30,15 +30,15 @@ COLOR(){
 LIGHT(){
   local value
   case $1 in
-    black)  value=white ;;
-    red)    value=green ;;
-    green)  value=red ;;
-    brown)  value=blue ;;
-    blue)   value=brown ;;
+    black) value=white ;;
+    red) value=green ;;
+    green) value=red ;;
+    brown) value=blue ;;
+    blue) value=brown ;;
     violet) value=cyan ;;
-    cyan)   value=black ;;
-    white)  value=white ;;
-    *)      value=white ;;
+    cyan) value=black ;;
+    white) value=white ;;
+    *) value=white ;;
   esac
   echo $value  
 }
@@ -52,19 +52,20 @@ Foreground(){
 }
 
 Backward(){
-  local vector=$1
-  if (( vector >= 1 )); then
-    vector=$(( vector - 1 ))
+  local point=$1
+  if (( point >= 1 )); then
+    point=$(( point - 1 ))
   fi
-  echo $vector
+  echo $point
 }
 
 Foreward(){
-  local vector=$1
-  if (( vector < ${#content[@]}-1 )); then
-    vector=$(( vector + 1 ))
+  local point=$1
+  local limit=${#content[@]}
+  if (( point < limit-1 )); then
+    point=$(( point + 1 ))
   fi
-  echo $vector
+  echo $point
 }
 
 # CODE(){
@@ -110,22 +111,24 @@ Listen(){
         '[D') intent=LT ;;
            *) intent=QU ;;
       esac;;
-    *) intent="IN$input" ;;
+    *) (( ${#input} > 0 )) && intent="IN$input" ;;
   esac
   echo $intent
 }
 
 Control(){
-  local action=$2
-  case $1 in
-    UP) action=`Backward $2` ;;
-    DN) action=`Foreward $2` ;;
-    LT) action=`Backward $2` ;;
-    RT) action=`Foreward $2` ;;
-    IN*) action=-2 ;;
-    QU) action=-9 ;;
+  local intent=$1
+  local focus=$2
+  local code=$focus
+  case $intent in
+    UP) code=`Backward $focus` ;;
+    DN) code=`Foreward $focus` ;;
+    LT) code=`Backward $focus` ;;
+    RT) code=`Foreward $focus` ;;
+    IN*) code=-2 ;;
+    QU) code=-9 ;;
   esac
-  echo $action
+  echo $code
 }
 
 Focus(){
@@ -203,50 +206,49 @@ Form(){
 
 # OUTPUT UI
 ###########
-Layout(){
-  local select=$1
-  local layout
-  if (( $select > -1 )); then
-    for i in "${!content[@]}"; do
-      if (( $select == $i )); then
-        layout+="${focused[$i]}"
-      else
-        layout+="${content[$i]}"
-      fi
-    done
-  else
-    layout="${content[*]}"
-  fi
-  echo $layout
-}
-
-Cursor(){
-  local focus=$1
-  local context=$2
-  local cursor
-  if (( focus > -1 )); then
-    local focal="\e${content[$focus]##*e}"
-    cursor+="$focal$context"
-  fi
-  echo $cursor
-}
 
 Blur(){
   echo -e "`Focus 0 0`"
 }
 
-Render(){
+Layout(){
   local focus=$1
-  local context=$2
-  local bg=`Background $BG`
-  local fg=`Foreground $FG`
-  echo -e "$bg\e[2J`Layout $focus`$fg$bg"
-  echo -en "`Cursor $focus $context`"
+  local fg=$2
+  local bg=$3
+  local layout
+  if (( focus > -1 )); then
+    for i in ${!content[@]}; do
+      if (( focus == i )); then
+        layout+=${focused[$i]}
+      else
+        layout+=${content[$i]}
+      fi
+    done
+  else
+    layout=${content[*]}
+  fi
+  echo -e "$bg\e[2J$layout$fg$bg"
 }
 
+Render(){
+  local focus=$1
+  local blur=$2
+  local context=$3
+  local fg=$4
+  local bg=$5
+
+  if (( focus != blur )); then
+    Layout $focus $fg $bg
+  fi
+
+  if (( ${#context} > 0 && focus > -1 )); then 
+    echo -en "\e${focused[$focus]##*e}$context"
+  fi
+}
 
 # SETUP
 ###########
+# TODO refactor setup, use Resize
 Setup(){
   # local setup="`Resize`"
   local setup="\e[8;$ROWS;$COLS;t"
@@ -297,28 +299,37 @@ Begin(){
 }
 
 Spin(){
+  local blur=-1
+  local code=-1
   local focus=-1
   local intent=''
-  local action=''
   local input=''
   local context=''
+  local fg=$1
+  local bg=$2
+
   while [ : ]; do
     intent=`Listen`
-    action=`Control $intent $focus`
-    case $action in
-      -2) input=${intent:2};
-          context+=$input ;;
-      -9) break; Stop ;;
-       *) focus=$action ;;
-    esac
-    Render $focus $context
+    if [[ -n $intent ]]; then
+      code=`Control $intent $focus`
+      case $code in
+        -2) input=${intent:2};
+            context+=$input ;;
+        -9) break ;;
+         *) blur=$focus; focus=$code ;;
+      esac
+      Render $focus $blur $context $fg $bg
+    fi
   done
 }
 
 Start(){
+  local fg=$1
+  local bg=$2
+  local fc=-1
   Begin
   Setup
-  Render
+  Layout $fc $fg $bg
   Blur
 }
 
@@ -329,8 +340,11 @@ Stop(){
 }
 
 Core(){
-  Start
-  Spin
+  local fg=`Foreground $FG`
+  local bg=`Background $BG`
+
+  Start $fg $bg
+  Spin $fg $bg
   Stop
 }
 
