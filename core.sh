@@ -98,37 +98,37 @@ Foreward(){
 ###########
 
 Listen(){
-  local intent=''
-  local input
-  read -n1 -r input
-  case $input in
+  local input=''
+  local intent
+  read -n1 -r intent
+  case $intent in
     $'\e') 
-      read -n2 -r -t.001 input
-      case $input in
-        '[A') intent=UP ;;
-        '[B') intent=DN ;;
-        '[C') intent=RT ;;
-        '[D') intent=LT ;;
-           *) intent=QU ;;
+      read -n2 -r -t.001 intent
+      case $intent in
+        '[A') input=UP ;;
+        '[B') input=DN ;;
+        '[C') input=RT ;;
+        '[D') input=LT ;;
+           *) input=QU ;;
       esac;;
-    *) (( ${#input} > 0 )) && intent="IN$input" ;;
+    *) (( ${#intent} > 0 )) && input="IN$intent" ;;
   esac
-  echo $intent
+  echo $input
 }
 
 Control(){
-  local intent=$1
+  local input=$1
   local focus=$2
-  local code=$focus
-  case $intent in
-    UP) code=`Backward $focus` ;;
-    DN) code=`Foreward $focus` ;;
-    LT) code=`Backward $focus` ;;
-    RT) code=`Foreward $focus` ;;
-    IN*) code=-2 ;;
-    QU) code=-9 ;;
+  local action=$focus
+  case $input in
+    UP) action=`Backward $focus` ;;
+    DN) action=`Foreward $focus` ;;
+    LT) action=`Backward $focus` ;;
+    RT) action=`Foreward $focus` ;;
+    IN*) action=-2 ;;
+    QU) action=-9 ;;
   esac
-  echo $code
+  echo $action
 }
 
 Focus(){
@@ -207,10 +207,6 @@ Form(){
 # OUTPUT UI
 ###########
 
-Blur(){
-  echo -e "`Focus 0 0`"
-}
-
 Layout(){
   local focus=$1
   local fg=$2
@@ -248,13 +244,6 @@ Render(){
 
 # SETUP
 ###########
-# TODO refactor setup, use Resize
-Setup(){
-  # local setup="`Resize`"
-  local setup="\e[8;$ROWS;$COLS;t"
-  setup+="\e[1;$ROWS;r"
-  echo -e $setup
-}
 
 Resize(){
   local pos
@@ -271,6 +260,19 @@ Resize(){
   local wsize=${size[2]}
 
   echo "\e[8;$hsize;$wsize;t"
+}
+
+# TODO refactor setup, use Resize
+Start(){
+  local fg=$1
+  local bg=$2
+  local fc=-1
+  # local setup="`Resize`"
+  local setup="\e[8;$ROWS;$COLS;t"
+  setup+="\e[1;$ROWS;r"
+  echo -e $setup
+  Layout $fc $fg $bg
+  echo -e "`Focus 0 0`"
 }
 
 Guard(){
@@ -292,7 +294,7 @@ Guard(){
 
 # MAIN
 ###########
-Begin(){
+Setup(){
   Form 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
   stty raw min 0 time 0
@@ -300,37 +302,26 @@ Begin(){
 
 Spin(){
   local blur=-1
-  local code=-1
   local focus=-1
-  local intent=''
+  local action=-1
   local input=''
+  local buffer=''
   local context=''
   local fg=$1
   local bg=$2
-
   while [ : ]; do
-    intent=`Listen`
-    if [[ -n $intent ]]; then
-      code=`Control $intent $focus`
-      case $code in
-        -2) input=${intent:2};
-            context+=$input ;;
+    input=`Listen`
+    if [[ -n $input ]]; then
+      action=`Control $input $focus`
+      case $action in
+        -2) buffer=${input:2};
+            context+=$buffer ;;
         -9) break ;;
-         *) blur=$focus; focus=$code ;;
+         *) blur=$focus; focus=$action ;;
       esac
       Render $focus $blur $context $fg $bg
     fi
   done
-}
-
-Start(){
-  local fg=$1
-  local bg=$2
-  local fc=-1
-  Begin
-  Setup
-  Layout $fc $fg $bg
-  Blur
 }
 
 Stop(){
@@ -343,6 +334,7 @@ Core(){
   local fg=`Foreground $FG`
   local bg=`Background $BG`
 
+  Setup
   Start $fg $bg
   Spin $fg $bg
   Stop
