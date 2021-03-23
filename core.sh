@@ -109,9 +109,9 @@ Listen(){
         [B) input=DN ;;
         [C) input=RT ;;
         [D) input=LT ;;
-           *) input=QU ;;
-      esac;;
-    *) (( ${#intent} > 0 )) && input="IN$intent" ;;
+         *) input=QU ;;
+      esac ;;
+    *) input="IN$intent" ;;
   esac
   echo $input
 }
@@ -150,22 +150,24 @@ Rect(){
 
   local rect=`Background $5`
   for r in $( seq 1 $h ); do 
-    rect+=`Focus $(( $x+$r )) $y`
-    rect+="\e[$w;@"
+    rect+="`Focus $(( $x+$r )) $y`\e[$w;@"
   done
 
   echo $rect
 }
 
 Field(){
-  local x=$(( $1 + 1 ))
-  local y=$(( $2 + 1 ))
+  local x=$1
+  local y=$2
   local w=$(( $3 - 2 ))
   local bg=$4
   local fc=$5
 
-  local field=`Rect $x $y $w 1 $bg`
   # field+=`Text $x $y $fc $_input`
+  local cap1=`Rect $x $y 1 1 $bg`
+  local inp=`Rect $x $(($y+1)) $w 1 $fc`
+  local cap2=`Rect $x $(( $y + $w + 1 )) 1 1 $bg`
+  local field="`Focus $x $y`$cap1\n$inp\n$cap2"
 
   echo $field
 }
@@ -181,15 +183,13 @@ TextField(){
   local label=$5
 
   local top=`Rect $x $y $w 2 $bg`
-  local lb=`Text $(( $x+2 )) $(( $y+1 )) $fc $label`
-  local cap1=`Rect $(( $x + 2 )) $y 1 1 $bg`
-  local inp=`Field $(( $x + 2 )) $y $w $BG $FG`
-  local cap2=`Rect $(( $x + 2 )) $(( $y + $w - 1 )) 1 1 $bg`
-  local bott=`Rect $(( $x + 3 )) $y $w 1 $bg`
+  local lb=`Text $(( $x+3 )) $y $fc $label`
+  local field=`Field $(( $x + 4 )) $y $w $bg $BG`
+  local bott=`Rect $(( $x + 5 )) $y $w 1 $bg`
   # attaching focus at the end
   local focus=`Focus $(( $x+3 )) $(( $y+1 ))`
 
-  echo "$top\n$lb\n$cap1\n$inp\n$cap2\n$bott$focus"
+  echo "$top\n$lb\n$field\n$bott$focus"
 }
 
 Form(){
@@ -204,7 +204,7 @@ Form(){
   done
 }
 
-# OUTPUT UI
+# RUN UI
 ###########
 
 Layout(){
@@ -233,7 +233,7 @@ Layout(){
 Render(){
   local focus=$1
   local blur=$2
-  local context=$3
+  local string=$3
   local fg=$4
   local bg=$5
 
@@ -241,15 +241,12 @@ Render(){
     Layout $focus $fg $bg
   fi
 
-  if (( ${#context} > 0 && focus > -1 )); then 
-    echo -en "\e${focused[$focus]##*e}$context"
+  if (( ${#string} > 0 && focus > -1 )); then 
+    echo -en "\e${focused[$focus]##*e}$string"
   fi
 
   return 0
 }
-
-# SETUP
-###########
 
 Resize(){
   local pos
@@ -269,7 +266,7 @@ Resize(){
 }
 
 # TODO refactor setup, use Resize
-Start(){
+Setup(){
   local fg=$1
   local bg=$2
   local fc=-1
@@ -280,6 +277,9 @@ Start(){
   Layout $fc $fg $bg
   echo -e "`Focus 0 0`"
 }
+
+# MAIN
+#######
 
 Guard(){
   if [[ -n $OFS ]]; then
@@ -297,10 +297,7 @@ Guard(){
   fi
 }
 
-
-# MAIN
-###########
-Setup(){
+Spawn(){
   Form 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
   stty raw min 0 time 0
@@ -312,7 +309,7 @@ Spin(){
   local action=-1
   local input=''
   local buffer=''
-  local context=''
+  local string=''
   local fg=$1
   local bg=$2
 
@@ -322,14 +319,14 @@ Spin(){
       action=`Control $input $focus`
       case $action in
         -2) buffer=${input:2};
-            context+=$buffer ;;
-        -9) break; Stop ;;
+            string+=$buffer ;;
+        -9) break ;;
          *) blur=$focus; focus=$action ;;
       esac
-      Render $focus $blur $context $fg $bg
+      Render $focus $blur $string $fg $bg
     fi
   done
-  
+
   return 0
 }
 
@@ -343,8 +340,8 @@ Core(){
   local fg=`Foreground $FG`
   local bg=`Background $BG`
 
-  Setup
-  Start $fg $bg
+  Spawn
+  Setup $fg $bg
   Spin $fg $bg
   Stop
 }
