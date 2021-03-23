@@ -3,39 +3,44 @@
 ROWS=44
 COLS=88
 
-_BG=black
-_FG=white
+BG=black
+FG=white
+FORM_BG=blue
+FORM_FC=cyan
+
+declare -a focused=()
+declare -a content=()
 
 COLOR(){
-  local color
+  local value
   case $1 in
-    black)  color=0 ;;
-    red)    color=1 ;;
-    green)  color=2 ;;
-    brown)  color=3 ;;
-    blue)   color=4 ;;
-    violet) color=5 ;;
-    cyan)   color=6 ;;
-    white)  color=7 ;;
-    *)      color=9 ;;
+    black)  value=0 ;;
+    red)    value=1 ;;
+    green)  value=2 ;;
+    brown)  value=3 ;;
+    blue)   value=4 ;;
+    violet) value=5 ;;
+    cyan)   value=6 ;;
+    white)  value=7 ;;
+    *)      value=9 ;;
   esac
-  echo $color
+  echo $value
 }
 
-ACTIVE(){
-  local active
+LIGHT(){
+  local value
   case $1 in
-    black)  active=white ;;
-    red)    active=green ;;
-    green)  active=red ;;
-    brown)  active=blue ;;
-    blue)   active=brown ;;
-    violet) active=cyan ;;
-    cyan)   active=black ;;
-    white)  active=white ;;
-    *)      active=white ;;
+    black)  value=white ;;
+    red)    value=green ;;
+    green)  value=red ;;
+    brown)  value=blue ;;
+    blue)   value=brown ;;
+    violet) value=cyan ;;
+    cyan)   value=black ;;
+    white)  value=white ;;
+    *)      value=white ;;
   esac
-  echo $active  
+  echo $value  
 }
 
 Background(){
@@ -46,85 +51,82 @@ Foreground(){
   echo "\e[3`COLOR $1`m"
 }
 
-BG=`Background $_BG`
-FG=`Foreground $_FG`
-
-input=''
-action=''
-selected=-1
-previous=-1
-declare -a focused=()
-declare -a content=()
-
 Listen(){
   local intent=''
-  local key
-  read -n1 -r key
-  case $key in
+  local input
+  read -n1 -r input
+  case $input in
     $'\e') 
-      read -n2 -r -t.001 key
-      case $key in
+      read -n2 -r -t.001 input
+      case $input in
         '[A') intent=UP ;;
         '[B') intent=DN ;;
         '[C') intent=RT ;;
         '[D') intent=LT ;;
            *) intent=QU ;;
       esac;;
-    *) input+=$key ;;
+    *) intent="IN$input" ;;
   esac
-  action=$intent
+  echo $intent
 }
 
 Backward(){
-  previous=$selected
-  (( selected >= 1 )) \
-    && selected=$(( selected - 1 ))
+  local vector=$1
+  if (( vector >= 1 )); then
+    vector=$(( vector - 1 ))
+  fi
+  echo $vector
 }
 
 Foreward(){
-  previous=$selected
-  (( selected < ${#content[@]}-1 )) \
-    && selected=$(( selected + 1 ))
+  local vector=$1
+  if (( vector < ${#content[@]}-1 )); then
+    vector=$(( vector + 1 ))
+  fi
+  echo $vector
 }
 
 Control(){
-  case $action in
-    UP) Backward ;;
-    DN) Foreward ;;
-    LT) Backward ;;
-    RT) Foreward ;;
-    QU) Stop ;;
+  local action=$2
+  case $1 in
+    UP) action=`Backward $2` ;;
+    DN) action=`Foreward $2` ;;
+    LT) action=`Backward $2` ;;
+    RT) action=`Foreward $2` ;;
+    IN*) action=-2 ;;
+    QU) action=-9 ;;
   esac
+  echo $action
 }
 
-CODE(){
-  local code
-  case $1 in
-    insert) code=4 ;;
-    invert) code=7 ;;
-    cursor) code=25 ;;
-    revert) code=27 ;;
-    *)      code=0 ;;
-  esac
-  echo $code
-}
+# CODE(){
+#   local code
+#   case $1 in
+#     insert) code=4 ;;
+#     invert) code=7 ;;
+#     cursor) code=25 ;;
+#     revert) code=27 ;;
+#     *)      code=0 ;;
+#   esac
+#   echo $code
+# }
+
+# Mode(){
+#   local mode
+#   if [[ $1 == '' || $1 == 'set' ]]; then
+#     mode=h
+#   elif [[ $1 == 'reset' ]]; then
+#     mode=l
+#   fi
+#   echo "\e[?$(CODE $1)$mode" 
+# }
+
+# Term(){
+#   echo "\e[`CODE $1`m"
+# }
 
 Focus(){
   echo "\e[$1;$2;H" 
-}
-
-Mode(){
-  local mode
-  if [[ $1 == '' || $1 == 'set' ]]; then
-    mode=h
-  elif [[ $1 == 'reset' ]]; then
-    mode=l
-  fi
-  echo "\e[?$(CODE $1)$mode" 
-}
-
-Term(){
-  echo "\e[`CODE $1`m"
 }
 
 Text(){
@@ -139,10 +141,8 @@ Rect(){
 
   local rect=`Background $5`
   for r in $( seq 1 $h ); do 
-    # rect+=`Mode insert`
     rect+=`Focus $(( $x+$r )) $y`
     rect+="\e[$w;@"
-    # rect+=`Mode reset insert`
   done
 
   echo $rect
@@ -156,31 +156,31 @@ Field(){
   local fc=$5
 
   local field=`Rect $x $y $w 1 $bg`
-  if (( ${#input} > 0 )); then
-    field+=`Text $x $y $fc $input`
-  fi
+  # field+=`Text $x $y $fc $_input`
 
   echo $field
 }
 
-Entry(){
+TextField(){
   local x=$(( $1 ))
   local y=$(( $2 ))
   local tx=$(( $x + 1 ))
   local ty=$(( $y + 1 ))
   local w=$(( $3 ))
   local bg=$4
-  local fc=`ACTIVE $4`
+  local fc=`LIGHT $4`
   local label=$5
 
   local top=`Rect $x $y $w 2 $bg`
   local lb=`Text $(( $x+2 )) $(( $y+1 )) $fc $label`
   local cap1=`Rect $(( $x + 2 )) $y 1 1 $bg`
-  local inp=`Field $(( $x + 2 )) $y $w $_BG $_FG`
+  local inp=`Field $(( $x + 2 )) $y $w $BG $FG`
   local cap2=`Rect $(( $x + 2 )) $(( $y + $w - 1 )) 1 1 $bg`
   local bott=`Rect $(( $x + 3 )) $y $w 1 $bg`
-  # attaching focus for input, at the end of command
-  echo "$top\n$lb\n$cap1\n$inp\n$cap2\n$bott`Focus $(( $x+3 )) $(( $y+1 ))`"
+  # attaching focus at the end
+  local focus=`Focus $(( $x+3 )) $(( $y+1 ))`
+
+  echo "$top\n$lb\n$cap1\n$inp\n$cap2\n$bott$focus"
 }
 
 Form(){
@@ -190,16 +190,17 @@ Form(){
   local idx
   for idx in $( seq 4 $# ); do
     local i=$(($idx-4))
-    content[$i]=`Entry $(( $x + 5*$i )) $y $w blue "${!idx}"`
-    focused[$i]=`Entry $(( $x + 5*$i )) $y $w cyan "${!idx}"`
+    content[$i]=`TextField $(( $x + 5*$i )) $y $w $FORM_BG "${!idx}"`
+    focused[$i]=`TextField $(( $x + 5*$i )) $y $w $FORM_FC "${!idx}"`
   done
 }
 
 Layout(){
+  local select=$1
   local layout
-  if (( $selected > -1 )); then
+  if (( $select > -1 )); then
     for i in "${!content[@]}"; do
-      if (( $selected == $i )); then
+      if (( $select == $i )); then
         layout+="${focused[$i]}"
       else
         layout+="${content[$i]}"
@@ -212,22 +213,47 @@ Layout(){
 }
 
 Cursor(){
-  local selection
-  if (( $selected > -1 )); then
-    # focused element has its focus at the end
-    selection+="\e${content[$selected]##*e}$input"
+  local this=$1
+  local text=$2
+  local cursor
+  if (( this > -1 )); then
+    local focal="\e${content[$this]##*e}"
+    cursor+="$focal$text"
   fi
-  echo $selection
+  echo $cursor
 }
 
 Render(){
-  echo -e "$BG\e[2J`Layout`${focus[$selected]}$FG$BG"
-  echo -en "`Cursor`"
+  local this=$1
+  local text=$2
+  local bg=`Background $BG`
+  local fg=`Foreground $FG`
+  echo -e "$bg\e[2J`Layout $this`$fg$bg"
+  echo -en "`Cursor $this $text`"
 }
 
 Resize(){
-  echo -e "\e[8;$ROWS;$COLS;t"
-  echo -e "\e[1;$ROWS;r"
+  local pos
+  printf "\e[13t" > /dev/tty
+  IFS=';' read -r -d t -a pos
+
+  local xpos=${pos[1]}
+  local ypos=${pos[2]}
+
+  printf "\e[14;2t" > /dev/tty
+  IFS=';' read -r -d t -a size
+
+  local hsize=${size[1]}
+  local wsize=${size[2]}
+
+  echo "\e[8;$hsize;$wsize;t"
+}
+
+Setup(){
+  # local setup="`Resize`"
+  local setup="\e[8;$ROWS;$COLS;t"
+  setup+="\e[1;$ROWS;r"
+  echo -e $setup
 }
 
 Blurr(){
@@ -241,25 +267,42 @@ Guard(){
     OFS=$IFS
     IFS=''
   fi
+
+  if [[ -n $OTTY ]]; then
+    stty $OTTY
+  else
+    OTTY=$(stty -g)
+  fi
 }
 
 Init(){
-  stty sane
+  stty raw min 0 time 0
   Form 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
 }
 
 Spin(){
+  local select=-1
+  local action=''
+  local intent=''
+  local input=''
+  local text=''
   while [ : ]; do
-    Listen
-    Control
-    Render
+    intent=`Listen`
+    action=`Control $intent $select`
+    case $action in
+      -2) input=${intent:2};
+          text+=$input ;;
+      -9) break; Stop ;;
+       *) select=$action ;;
+    esac
+    Render $select $text
   done
 }
 
 Start(){
   Init
-  Resize
+  Setup
   Render
   Blurr
 }
