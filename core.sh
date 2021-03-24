@@ -5,8 +5,10 @@ COLS=88
 
 BG=black
 FG=white
-FORM_BG=blue
-FORM_FC=cyan
+FORM_COLOR=blue
+FORM_FOCUS_COLOR=cyan
+FORM_FONT_COLOR=white
+FORM_FONT_FOCUS_COLOR=black
 
 declare -a focused=()
 declare -a content=()
@@ -27,7 +29,7 @@ COLOR(){
   echo $value
 }
 
-LIGHT(){
+FOCOL(){
   local value
   case $1 in
     black) value=white ;;
@@ -40,7 +42,7 @@ LIGHT(){
     white) value=white ;;
     *) value=white ;;
   esac
-  echo $value  
+  echo $value
 }
 
 Background(){
@@ -163,15 +165,17 @@ Rect(){
 Field(){
   local x=$1
   local y=$2
-  local w=$(( $3 - 2 ))
-  local bg=$4
-  local fc=$5
+  local w=$3
+  local fld=$4
+  local bg=$5
+  local fg=$6
+  local fc=$7
 
-  # field+=`Text $x $y $fc $_input`
-  local cap1=`Rect $x $y 1 1 $bg`
-  local inp=`Rect $(($x+1)) $y $w 1 $fc`
-  local cap2=`Rect $(( $x + $w + 1 )) $y 1 1 $bg`
-  local field="$cap1\n$inp\n$cap2`Focus $(($x+1)) $(($y+1))`"
+  local label=`Text $x $y $fc $fld`
+  local cap=`Rect $x $y 1 1 $bg`
+  local box=`Rect $(( $x + 1 )) $y $(( $w - 2 )) 1 $fg`
+  local end=`Rect $(( $x + $w - 1 )) $y 1 1 $bg`
+  local field="`Background $bg`$label\n$cap\n$box\n$end`Focus $(($x+1)) $(($y+1))`"
 
   echo $field
 }
@@ -183,7 +187,7 @@ Field(){
 #   local ty=$(( $y + 1 ))
 #   local w=$(( $3 ))
 #   local bg=$4
-#   local fc=`LIGHT $4`
+#   local fc=`FOCOL $4`
 #   local label=$5
 
 #   local top=`Rect $x $y $w 2 $bg`
@@ -197,25 +201,28 @@ Field(){
 # }
 
 Form(){
-  local color=$1;
-  local x=3; 
-  local y=3;
-  local w=20;
-  local fc=`LIGHT $1`
-  local idx
+  local fields=($(echo $1 | tr ":" " "))
+  local color=$2
+  local font_color=$3
+  local field_color=`Background $BG`
+
+  local x=3
+  local y=3
+  local w=20
   
   declare -a form
-  for i in $( seq 0 3 ); do
+  for i in $( seq 0 $(( ${#fields} - 2 )) ); do
     local row=$(( $y + 5*$(($i+1)) ))
-    # local name="${!row}"
-    form[$i]=`Field $x $row $w $color $fc`
+    local field_name=${fields[$i]}
+    form[$i]=`Field $x $row $w $field_name $color $field_color $font_color`
   done
   echo ${form[@]}
 }
 
 Page(){
-  content=(`Form $FORM_BG`)
-  focused=(`Form $FORM_FC`)
+  local fields=$1
+  content=(`Form $fields $FORM_COLOR $FORM_FONT_COLOR`)
+  focused=(`Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR`)
 }
 
 # RUN UI
@@ -312,7 +319,7 @@ Guard(){
 }
 
 Spawn(){
-  Page 3 3 35 blah1 blah3 some stuff glaaxy
+  Page "inits:proc:sub:sys"
   Guard
   stty raw min 0 time 0
 }
