@@ -152,16 +152,18 @@ Field(){
   local x=$1
   local y=$2
   local w=$3
-  local label=$4
+  local name=$4
   local bg=$5
   local fg=$6
   local fc=$7
+  local label=`Text $(($x+1)) $y $fc $name`
+  local pad=$(( $w - ${#name} - 1 ))
 
-  local label=`Text $x $y $fc $label`
   local cap=`Rect $x $y 1 1 $bg`
+  local cap2=`Rect $x $(($y-1)) 1 1 $bg`
   local box=`Rect $(( $x + 1 )) $y $(( $w - 2 )) 1 $fg`
   local end=`Rect $(( $x + $w - 1 )) $y 1 1 $bg`
-  local field="`Background $bg`$label\n$cap\n$box\n$end`Focus $(($x+1)) $(($y+1))`"
+  local field="`Background $bg`$cap2$label\e[$pad;@\n$cap\n$box\n$end`Focus $(($x+1)) $(($y+1))`"
 
   echo $field
 }
