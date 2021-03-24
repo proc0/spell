@@ -16,6 +16,7 @@ declare -a focused=()
 declare -a content=()
 declare -a selection=()
 declare -f handlers=()
+_io=0
 
 COLOR(){
   local value
@@ -88,11 +89,11 @@ Foreward(){
 ###########
 
 Listen(){
-  local input
-  local intent
+  local input=""
+  local intent=""
   local command
   read -n1 -r intent
-  case "$intent" in
+  case $intent in
     $'\e') 
       read -n2 -r -t.001 command
       case $command in
@@ -102,9 +103,10 @@ Listen(){
         [D) input=LT ;;
          *) input=QU ;;
       esac ;;
+    $'\0d') input=EN ;;
     *) input="IN$intent" ;;
   esac
-  echo $input
+  echo "$input"
 }
 
 Control(){
@@ -117,6 +119,7 @@ Control(){
      LT) action=$(Backward $focus) ;;
      RT) action=$(Foreward $focus) ;;
     IN*) action=-2 ;;
+     EN) action=-3 ;;
      QU) action=-9 ;;
   esac
   echo $action
@@ -203,7 +206,7 @@ Button(){
   local label="$(Text $x $y $fc $name)"
   local foot="$(Rect $x $(($y+1)) $w 1 $bg)"
 
-  local button="$top$label\n$foot"
+  local button="$(Background $bg)$top$label\n$foot"
 
   echo $button
 }
@@ -266,17 +269,22 @@ Layout(){
 
 Render(){
   local focus=$1
-  local blur=$2
-  local string="$3"
-  local fg=$4
-  local bg=$5
+  local action=$2
+  local blur=$3
+  local string="$4"
+  local fg=$5
+  local bg=$6
 
   if (( focus != blur )); then
     Layout $focus $fg $bg
   fi
 
   if (( focus > -1 )); then 
-    eval ${handlers[$focus]} $focus "$string"
+    eval ${handlers[$focus]} $focus $action
+  fi
+
+  if (( action == -2 )); then 
+    echo -en "$string"
   fi
 
   return 0
@@ -284,13 +292,16 @@ Render(){
 
 FieldHandler(){
   local focus=$1
-  local string="$2"
-
-  echo -en "${selection[$focus]}$string" 
+  echo -en "${selection[$focus]}" 
 }
 
 ButtonHandler(){
-  echo -en "${selection[$focus]}yaya" 
+  local focus=$(( $1 - 1 ))
+  local action=$2
+  if (( action == -3 )); then
+    echo -en "${selection[$focus]}`Foreground yellow`YAYA" 
+    _io=1
+  fi
 }
 
 Resize(){
@@ -360,15 +371,16 @@ Spin(){
 
   while [ : ]; do
     input="$(Listen)"
-    if [[ -n $input ]]; then
+    if (( ${#input} > 0 )); then
       action=$(Control "$input" $focus)
       case $action in
         -2) buffer="${input:2}";
             string+="$buffer" ;;
+        -3) string="";;
         -9) break ;;
          *) blur=$focus; focus=$action ;;
       esac
-      Render $focus $blur "$string" $fg $bg
+      Render $focus $action $blur "$string" $fg $bg
     fi
   done
 
