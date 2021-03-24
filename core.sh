@@ -14,6 +14,8 @@ FORM_FONT_FOCUS_COLOR=black
 
 declare -a focused=()
 declare -a content=()
+declare -a selection=()
+declare -f handlers=()
 
 COLOR(){
   local value
@@ -32,11 +34,11 @@ COLOR(){
 }
 
 Background(){
-  echo "\e[4`COLOR $1`m"
+  echo "\e[4$(COLOR $1)m"
 }
 
 Foreground(){
-  echo "\e[3`COLOR $1`m"
+  echo "\e[3$(COLOR $1)m"
 }
 
 Backward(){
@@ -49,7 +51,7 @@ Backward(){
 
 Foreward(){
   local point=$1
-  local limit=${#content[@]}
+  local limit=$(( ${#content[*]} - 1 ))
   if (( point < limit-1 )); then
     point=$(( point + 1 ))
   fi
@@ -79,20 +81,21 @@ Foreward(){
 # }
 
 # Term(){
-#   echo "\e[`CODE $1`m"
+#   echo "\e[$(CODE $1)m"
 # }
 
 # EVENT
 ###########
 
 Listen(){
-  local input=''
+  local input
   local intent
+  local command
   read -n1 -r intent
-  case $intent in
+  case "$intent" in
     $'\e') 
-      read -n2 -r -t.001 intent
-      case $intent in
+      read -n2 -r -t.001 command
+      case $command in
         [A) input=UP ;;
         [B) input=DN ;;
         [C) input=RT ;;
@@ -105,14 +108,14 @@ Listen(){
 }
 
 Control(){
-  local input=$1
+  local input="$1"
   local focus=$2
   local action=$focus
-  case $input in
-     UP) action=`Backward $focus` ;;
-     DN) action=`Foreward $focus` ;;
-     LT) action=`Backward $focus` ;;
-     RT) action=`Foreward $focus` ;;
+  case "$input" in
+     UP) action=$(Backward $focus) ;;
+     DN) action=$(Foreward $focus) ;;
+     LT) action=$(Backward $focus) ;;
+     RT) action=$(Foreward $focus) ;;
     IN*) action=-2 ;;
      QU) action=-9 ;;
   esac
@@ -131,7 +134,7 @@ Focus(){
 Text(){
   local x=$1
   local y=$2
-  echo "`Foreground $3``Focus $x $y`$4"
+  echo "$(Foreground $3)$(Focus $x $y)$4"
 }
 
 Rect(){
@@ -140,9 +143,9 @@ Rect(){
   local w=$3
   local h=$4
 
-  local rect=`Background $5`
+  local rect="$(Background $5)"
   for r in $( seq 1 $h ); do 
-    rect+="`Focus $x $(( $y+$r ))`\e[$w;@"
+    rect+="$(Focus $x $(( $y+$r )))\e[$w;@"
   done
 
   echo $rect
@@ -156,15 +159,14 @@ Field(){
   local bg=$5
   local fg=$6
   local fc=$7
-  local label=`Text $(($x+1)) $y $fc $name`
   local pad=$(( $w - ${#name} - 1 ))
 
-  local cap=`Rect $x $y 1 1 $bg`
-  local cap2=`Rect $x $(($y-1)) 1 1 $bg`
-  local box=`Rect $(( $x + 1 )) $y $(( $w - 2 )) 1 $fg`
-  local end=`Rect $(( $x + $w - 1 )) $y 1 1 $bg`
-  local field="`Background $bg`$cap2$label\e[$pad;@\n$cap\n$box\n$end`Focus $(($x+1)) $(($y+1))`"
-
+  local cap1="$(Rect $x $(($y-1)) 1 1 $bg)"
+  local label="$(Text $(($x+1)) $y $fc $name)"
+  local cap2="$(Rect $x $y 1 1 $bg)"
+  local box="$(Rect $(( $x + 1 )) $y $(( $w - 2 )) 1 $fg)"
+  local end="$(Rect $(( $x + $w - 1 )) $y 1 1 $bg)"
+  local field="$(Background $bg)$cap1$label\e[$pad;@$cap2$box$end"
   echo $field
 }
 
@@ -175,42 +177,65 @@ Field(){
 #   local ty=$(( $y + 1 ))
 #   local w=$(( $3 ))
 #   local bg=$4
-#   local fc=`FOCOL $4`
+#   local fc=$(FOCOL $4)
 #   local label=$5
 
-#   local top=`Rect $x $y $w 2 $bg`
-#   local lb=`Text $(( $x+3 )) $y $fc $label`
-#   local field=`Field $(( $x + 4 )) $y $w $bg $BG_COLOR`
-#   local bott=`Rect $(( $x + 5 )) $y $w 1 $bg`
+#   local top=$(Rect $x $y $w 2 $bg)
+#   local lb=$(Text $(( $x+3 )) $y $fc $label)
+#   local field=$(Field $(( $x + 4 )) $y $w $bg $BG_COLOR)
+#   local bott=$(Rect $(( $x + 5 )) $y $w 1 $bg)
 #   # attaching focus at the end
-#   local focus=`Focus $(( $x+3 )) $(( $y+1 ))`
+#   local focus=$(Focus $(( $x+3 )) $(( $y+1 )))
 
 #   echo "$top\n$lb\n$field\n$bott$focus"
 # }
+Button(){
+  local x=$1
+  local y=$2
+  local w=$3
+  local name=$4
+  local bg=$5
+  local fg=$6
+  local fc=$7
+  local pad=$(( $w - ${#name} - 1 ))
+
+  local top="$(Rect $x $(($y-1)) $w 1 $bg)"
+  local label="$(Text $x $y $fc $name)"
+  local foot="$(Rect $x $(($y+1)) $w 1 $bg)"
+
+  local button="$top$label\n$foot"
+
+  echo $button
+}
 
 Form(){
   local fields=($(echo $1 | tr ":" " "))
   local color=$2
   local font_color=$3
-  local field_color=`Background $BG_COLOR`
+  local field_color="$BG_COLOR"
 
   local x=3
   local y=3
   local w=20
   
-  declare -a form
-  for i in $( seq 0 $(( ${#fields} - 2 )) ); do
-    local row=$(( $y + 5*$(($i+1)) ))
+  for i in $( seq 0 $(( ${#fields} - 1 )) ); do
+    local row=$(( $y + 2*$(($i+1)) ))
     local field_name=${fields[$i]}
-    form[$i]=`Field $x $row $w $field_name $color $field_color $font_color`
+    content[$i]="$(Field $x $row $w $field_name $color $field_color $font_color)"
+    selection+=("$(Focus $(($x+1)) $(($row+1)))")
+    handlers+=(FieldHandler)
   done
-  echo ${form[@]}
+  content+=("$(Button $x $(( $y * ${#fields} )) 13 butt $color $field_color $font_color)")
+  selection+=($(Focus $x $(( $y * ${#fields} ))))
+  handlers+=(ButtonHandler)
 }
 
 Page(){
   local fields=$1
-  content=(`Form $fields $FORM_COLOR $FORM_FONT_COLOR`)
-  focused=(`Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR`)
+  Form $fields $FORM_COLOR $FORM_FONT_COLOR
+  # Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR
+  # content=($(Form $fields $FORM_COLOR $FORM_FONT_COLOR))
+  # focused=($(Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR))
 }
 
 # RUN UI
@@ -225,7 +250,7 @@ Layout(){
   if (( focus > -1 )); then
     for i in ${!content[@]}; do
       if (( focus == i )); then
-        layout+=${focused[$i]}
+        layout+=${content[$i]}
       else
         layout+=${content[$i]}
       fi
@@ -242,7 +267,7 @@ Layout(){
 Render(){
   local focus=$1
   local blur=$2
-  local string=$3
+  local string="$3"
   local fg=$4
   local bg=$5
 
@@ -250,11 +275,22 @@ Render(){
     Layout $focus $fg $bg
   fi
 
-  if (( ${#string} > 0 && focus > -1 )); then 
-    echo -en "\e${focused[$focus]##*e}$string"
+  if (( focus > -1 )); then 
+    eval ${handlers[$focus]} $focus "$string"
   fi
 
   return 0
+}
+
+FieldHandler(){
+  local focus=$1
+  local string="$2"
+
+  echo -en "${selection[$focus]}$string" 
+}
+
+ButtonHandler(){
+  echo -en "${selection[$focus]}yaya" 
 }
 
 Resize(){
@@ -279,12 +315,12 @@ Setup(){
   local fg=$1
   local bg=$2
   local fc=-1
-  # local setup="`Resize`"
+  # local setup="$(Resize)"
   local setup="\e[8;$ROWS;$COLS;t"
   setup+="\e[1;$ROWS;r"
   echo -e $setup
   Layout $fc $fg $bg
-  echo -e "`Focus 0 0`"
+  echo -e "$(Focus 0 0)"
 }
 
 # MAIN
@@ -295,7 +331,7 @@ Guard(){
     IFS=$OFS
   else
     OFS=$IFS
-    IFS=
+    IFS=''
   fi
 
   if [[ -n $OTTY ]]; then
@@ -316,23 +352,23 @@ Spin(){
   local blur=-1
   local focus=-1
   local action=-1
-  local input=''
-  local buffer=''
-  local string=''
+  local input=""
+  local buffer=""
+  local string=""
   local fg=$1
   local bg=$2
 
   while [ : ]; do
-    input=`Listen`
+    input="$(Listen)"
     if [[ -n $input ]]; then
-      action=`Control $input $focus`
+      action=$(Control "$input" $focus)
       case $action in
-        -2) buffer=${input:2};
-            string+=$buffer ;;
+        -2) buffer="${input:2}";
+            string+="$buffer" ;;
         -9) break ;;
          *) blur=$focus; focus=$action ;;
       esac
-      Render $focus $blur $string $fg $bg
+      Render $focus $blur "$string" $fg $bg
     fi
   done
 
@@ -346,8 +382,8 @@ Stop(){
 }
 
 Core(){
-  local fg=`Foreground $FG_COLOR`
-  local bg=`Background $BG_COLOR`
+  local fg="$(Foreground $FG_COLOR)"
+  local bg="$(Background $BG_COLOR)"
 
   Spawn
   Setup $fg $bg
