@@ -132,14 +132,18 @@ Control(){
 }
 
 Focus(){
-  echo "\e[$1;$2;H" 
+  local x=$1
+  local y=$2
+  echo "\e[$y;$x;H" 
 }
 
 # BUILD UI
 ###########
 
 Text(){
-  echo "`Foreground $3``Focus $1 $2`$4"
+  local x=$1
+  local y=$2
+  echo "`Foreground $3``Focus $x $y`$4"
 }
 
 Rect(){
@@ -150,7 +154,7 @@ Rect(){
 
   local rect=`Background $5`
   for r in $( seq 1 $h ); do 
-    rect+="`Focus $(( $x+$r )) $y`\e[$w;@"
+    rect+="`Focus $x $(( $y+$r ))`\e[$w;@"
   done
 
   echo $rect
@@ -165,43 +169,53 @@ Field(){
 
   # field+=`Text $x $y $fc $_input`
   local cap1=`Rect $x $y 1 1 $bg`
-  local inp=`Rect $x $(($y+1)) $w 1 $fc`
-  local cap2=`Rect $x $(( $y + $w + 1 )) 1 1 $bg`
-  local field="`Focus $x $y`$cap1\n$inp\n$cap2"
+  local inp=`Rect $(($x+1)) $y $w 1 $fc`
+  local cap2=`Rect $(( $x + $w + 1 )) $y 1 1 $bg`
+  local field="$cap1\n$inp\n$cap2`Focus $(($x+1)) $(($y+1))`"
 
   echo $field
 }
 
-TextField(){
-  local x=$(( $1 ))
-  local y=$(( $2 ))
-  local tx=$(( $x + 1 ))
-  local ty=$(( $y + 1 ))
-  local w=$(( $3 ))
-  local bg=$4
-  local fc=`LIGHT $4`
-  local label=$5
+# TextField(){
+#   local x=$(( $1 ))
+#   local y=$(( $2 ))
+#   local tx=$(( $x + 1 ))
+#   local ty=$(( $y + 1 ))
+#   local w=$(( $3 ))
+#   local bg=$4
+#   local fc=`LIGHT $4`
+#   local label=$5
 
-  local top=`Rect $x $y $w 2 $bg`
-  local lb=`Text $(( $x+3 )) $y $fc $label`
-  local field=`Field $(( $x + 4 )) $y $w $bg $BG`
-  local bott=`Rect $(( $x + 5 )) $y $w 1 $bg`
-  # attaching focus at the end
-  local focus=`Focus $(( $x+3 )) $(( $y+1 ))`
+#   local top=`Rect $x $y $w 2 $bg`
+#   local lb=`Text $(( $x+3 )) $y $fc $label`
+#   local field=`Field $(( $x + 4 )) $y $w $bg $BG`
+#   local bott=`Rect $(( $x + 5 )) $y $w 1 $bg`
+#   # attaching focus at the end
+#   local focus=`Focus $(( $x+3 )) $(( $y+1 ))`
 
-  echo "$top\n$lb\n$field\n$bott$focus"
-}
+#   echo "$top\n$lb\n$field\n$bott$focus"
+# }
 
 Form(){
-  local x=$1; 
-  local y=$2;
-  local w=$3;
+  local color=$1;
+  local x=3; 
+  local y=3;
+  local w=20;
+  local fc=`LIGHT $1`
   local idx
-  for idx in $( seq 4 $# ); do
-    local i=$(($idx-4))
-    content[$i]=`TextField $(( $x + 5*$i )) $y $w $FORM_BG "${!idx}"`
-    focused[$i]=`TextField $(( $x + 5*$i )) $y $w $FORM_FC "${!idx}"`
+  
+  declare -a form
+  for i in $( seq 0 3 ); do
+    local row=$(( $y + 5*$(($i+1)) ))
+    # local name="${!row}"
+    form[$i]=`Field $x $row $w $color $fc`
   done
+  echo ${form[@]}
+}
+
+Page(){
+  content=(`Form $FORM_BG`)
+  focused=(`Form $FORM_FC`)
 }
 
 # RUN UI
@@ -298,7 +312,7 @@ Guard(){
 }
 
 Spawn(){
-  Form 3 3 35 blah1 blah3 some stuff glaaxy
+  Page 3 3 35 blah1 blah3 some stuff glaaxy
   Guard
   stty raw min 0 time 0
 }
