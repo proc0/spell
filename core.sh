@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
+# WINDOW
 ROWS=44
 COLS=88
 
-BG=black
-FG=white
+# PALETTE
+BG_COLOR=black
+FG_COLOR=white
 FORM_COLOR=blue
 FORM_FOCUS_COLOR=cyan
 FORM_FONT_COLOR=white
@@ -17,30 +19,14 @@ COLOR(){
   local value
   case $1 in
     black) value=0 ;;
-    red) value=1 ;;
+      red) value=1 ;;
     green) value=2 ;;
     brown) value=3 ;;
-    blue) value=4 ;;
-    violet) value=5 ;;
-    cyan) value=6 ;;
+     blue) value=4 ;;
+    lilac) value=5 ;;
+     cyan) value=6 ;;
     white) value=7 ;;
-    *) value=9 ;;
-  esac
-  echo $value
-}
-
-FOCOL(){
-  local value
-  case $1 in
-    black) value=white ;;
-    red) value=green ;;
-    green) value=red ;;
-    brown) value=blue ;;
-    blue) value=brown ;;
-    violet) value=cyan ;;
-    cyan) value=black ;;
-    white) value=white ;;
-    *) value=white ;;
+        *) value=9 ;;
   esac
   echo $value
 }
@@ -123,12 +109,12 @@ Control(){
   local focus=$2
   local action=$focus
   case $input in
-    UP) action=`Backward $focus` ;;
-    DN) action=`Foreward $focus` ;;
-    LT) action=`Backward $focus` ;;
-    RT) action=`Foreward $focus` ;;
+     UP) action=`Backward $focus` ;;
+     DN) action=`Foreward $focus` ;;
+     LT) action=`Backward $focus` ;;
+     RT) action=`Foreward $focus` ;;
     IN*) action=-2 ;;
-    QU) action=-9 ;;
+     QU) action=-9 ;;
   esac
   echo $action
 }
@@ -166,12 +152,12 @@ Field(){
   local x=$1
   local y=$2
   local w=$3
-  local fld=$4
+  local label=$4
   local bg=$5
   local fg=$6
   local fc=$7
 
-  local label=`Text $x $y $fc $fld`
+  local label=`Text $x $y $fc $label`
   local cap=`Rect $x $y 1 1 $bg`
   local box=`Rect $(( $x + 1 )) $y $(( $w - 2 )) 1 $fg`
   local end=`Rect $(( $x + $w - 1 )) $y 1 1 $bg`
@@ -192,7 +178,7 @@ Field(){
 
 #   local top=`Rect $x $y $w 2 $bg`
 #   local lb=`Text $(( $x+3 )) $y $fc $label`
-#   local field=`Field $(( $x + 4 )) $y $w $bg $BG`
+#   local field=`Field $(( $x + 4 )) $y $w $bg $BG_COLOR`
 #   local bott=`Rect $(( $x + 5 )) $y $w 1 $bg`
 #   # attaching focus at the end
 #   local focus=`Focus $(( $x+3 )) $(( $y+1 ))`
@@ -204,7 +190,7 @@ Form(){
   local fields=($(echo $1 | tr ":" " "))
   local color=$2
   local font_color=$3
-  local field_color=`Background $BG`
+  local field_color=`Background $BG_COLOR`
 
   local x=3
   local y=3
@@ -358,8 +344,8 @@ Stop(){
 }
 
 Core(){
-  local fg=`Foreground $FG`
-  local bg=`Background $BG`
+  local fg=`Foreground $FG_COLOR`
+  local bg=`Background $BG_COLOR`
 
   Spawn
   Setup $fg $bg
