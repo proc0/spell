@@ -200,13 +200,14 @@ Button(){
   local bg=$5
   local fg=$6
   local fc=$7
-  local pad=$(( $w - ${#name} - 1 ))
+  local pad=$(( $w - ${#name} ))
 
   # local top="$(Rect $x $(($y-1)) $w 1 $bg)"
+  local cap1="$(Rect $x $(($y-1)) 1 1 $bg)"
   local label="$(Text $x $y $fc $name)"
   # local foot="$(Rect $x $(($y+1)) $w 1 $bg)"
 
-  local button="`Background $bg`$label"
+  local button="$cap1$label\e[$pad;@"
 
   echo $button
 }
@@ -230,12 +231,14 @@ Form(){
     fi
     handlers+=(FieldHandler)
   done
-  content+=("$(Button $x $(( $y * 2 * $len )) $(( $w / 2 )) butt red $field_color $font_color)")
+  local buttpos=$(( $len + 1 ))
+  local bottpos=$(( $len + 2 ))
+  content[$buttpos]="$(Button $x $(( $y + $(( 3 * $len )) + 1 )) $w '[button]' $color $field_color $font_color)"
   if [[ -z $no_select ]]; then
-    selection+=($(Focus $x $(( $y * 2 * $len )) ))
+    selection+=($(Focus $x $(( $y + $(( 3 * $len )) + 1 )) ))
   fi
   handlers+=(ButtonHandler)
-  content+="$(Rect $x $(( $y * 2 * $len )) $w 1 $color)"
+  content[$bottpos]="$(Rect $x $(( $y + $(( 3 * $len )) + 1 )) $w 1 $color)"
 }
 
 Page(){
