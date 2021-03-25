@@ -59,27 +59,27 @@ Foreward(){
   echo $point
 }
 
-# CODE(){
-#   local code
-#   case $1 in
-#     insert) code=4 ;;
-#     invert) code=7 ;;
-#     cursor) code=25 ;;
-#     revert) code=27 ;;
-#     *)      code=0 ;;
-#   esac
-#   echo $code
-# }
+CODE(){
+  local code
+  case $1 in
+    insert) code=4 ;;
+    invert) code=7 ;;
+    cursor) code=25 ;;
+    revert) code=27 ;;
+    *)      code=0 ;;
+  esac
+  echo $code
+}
 
-# Mode(){
-#   local mode
-#   if [[ $1 == '' || $1 == 'set' ]]; then
-#     mode=h
-#   elif [[ $1 == 'reset' ]]; then
-#     mode=l
-#   fi
-#   echo "\e[?$(CODE $1)$mode" 
-# }
+Mode(){
+  local mode
+  if [[ $1 == '' || $1 == 'set' ]]; then
+    mode=h
+  elif [[ $1 == 'reset' ]]; then
+    mode=l
+  fi
+  echo "\e[?$(CODE $1)$mode" 
+}
 
 # Term(){
 #   echo "\e[$(CODE $1)m"
@@ -311,9 +311,10 @@ FieldHandler(){
 ButtonHandler(){
   local focus=$(( $1 - 1 ))
   local action=$2
-  if (( $action == -3 && $_io == 0 )); then
+
+  if (( $action == -3 && _io == 0 )); then
+    echo -en "${selection[$focus]}`Foreground yellow`YAYA"
     _io=1
-    echo -en "${selection[$focus]}`Foreground yellow`YAYA" 
   fi
 }
 
