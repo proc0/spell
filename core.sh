@@ -216,7 +216,7 @@ Form(){
   local color=$2
   local font_color=$3
   local field_color="$BG_COLOR"
-
+  local no_select=$4
   local x=3
   local y=3
   local w=20
@@ -225,19 +225,27 @@ Form(){
     local row=$(( $y + 2*$(($i+1)) ))
     local field_name=${fields[$i]}
     content[$i]="$(Field $x $row $w $field_name $color $field_color $font_color)"
-    selection+=("$(Focus $(($x+1)) $(($row+1)))")
+    if [[ -z $no_select ]]; then
+      selection+=("$(Focus $(($x+1)) $(($row+1)))")
+    fi
     handlers+=(FieldHandler)
   done
   content+=("$(Button $x $(( $y * 2 * $len )) $(( $w / 2 )) butt red $field_color $font_color)")
-  selection+=($(Focus $x $(( $y * 2 * $len )) ))
+  if [[ -z $no_select ]]; then
+    selection+=($(Focus $x $(( $y * 2 * $len )) ))
+  fi
   handlers+=(ButtonHandler)
-  content+="$(Rect $x $(( $y * 2 * $len )) $w 1 $color)${selection[0]}"
+  content+="$(Rect $x $(( $y * 2 * $len )) $w 1 $color)"
 }
 
 Page(){
   local fields=$1
+  Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR 1
+
+  for c in ${!content[@]}; do
+    focused[$c]=${content[$c]}
+  done
   Form $fields $FORM_COLOR $FORM_FONT_COLOR
-  # Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR
   # content=($(Form $fields $FORM_COLOR $FORM_FONT_COLOR))
   # focused=($(Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR))
 }
@@ -254,7 +262,7 @@ Layout(){
   if (( focus > -1 )); then
     for i in ${!content[@]}; do
       if (( focus == i )); then
-        layout+=${content[$i]}
+        layout+=${focused[$i]}
       else
         layout+=${content[$i]}
       fi
