@@ -52,9 +52,9 @@ Backward(){
 
 Foreward(){
   local point=$1
-  local limit=$(( ${#content[*]} - 1 ))
-  if (( point < limit-1 )); then
-    point=$(( point + 1 ))
+  local limit=${#selection[@]}
+  if (( point < limit - 1 )); then
+    point=$(( $point + 1 ))
   fi
   echo $point
 }
@@ -202,17 +202,17 @@ Button(){
   local fc=$7
   local pad=$(( $w - ${#name} - 1 ))
 
-  local top="$(Rect $x $(($y-1)) $w 1 $bg)"
+  # local top="$(Rect $x $(($y-1)) $w 1 $bg)"
   local label="$(Text $x $y $fc $name)"
-  local foot="$(Rect $x $(($y+1)) $w 1 $bg)"
+  # local foot="$(Rect $x $(($y+1)) $w 1 $bg)"
 
-  local button="$(Background $bg)$top$label\n$foot"
+  local button="`Background $bg`$label"
 
   echo $button
 }
 
 Form(){
-  local fields=($(echo $1 | tr ":" " "))
+  local fields=($(echo $1 | tr ":" "\n"))
   local color=$2
   local font_color=$3
   local field_color="$BG_COLOR"
@@ -220,17 +220,18 @@ Form(){
   local x=3
   local y=3
   local w=20
-  
-  for i in $( seq 0 $(( ${#fields} - 1 )) ); do
+  local len=$(( ${#fields[*]} - 1 ))
+  for i in $( seq 0 $len ); do
     local row=$(( $y + 2*$(($i+1)) ))
     local field_name=${fields[$i]}
     content[$i]="$(Field $x $row $w $field_name $color $field_color $font_color)"
     selection+=("$(Focus $(($x+1)) $(($row+1)))")
     handlers+=(FieldHandler)
   done
-  content+=("$(Button $x $(( $y * ${#fields} )) 13 butt $color $field_color $font_color)")
-  selection+=($(Focus $x $(( $y * ${#fields} ))))
+  content+=("$(Button $x $(( $y * 2 * $len )) $(( $w / 2 )) butt red $field_color $font_color)")
+  selection+=($(Focus $x $(( $y * 2 * $len )) ))
   handlers+=(ButtonHandler)
+  content+="$(Rect $x $(( $y * 2 * $len )) $w 1 $color)${selection[0]}"
 }
 
 Page(){
@@ -259,7 +260,7 @@ Layout(){
       fi
     done
   else
-    layout=${content[*]}
+    layout=${content[@]}
   fi
 
   echo -e "$bg\e[2J$layout$fg$bg"
@@ -279,11 +280,12 @@ Render(){
     Layout $focus $fg $bg
   fi
 
-  if (( focus > -1 )); then 
+  if [[ -n ${handlers[$focus]} ]]; then 
+    echo -en "${selection[$focus]}" 
     eval ${handlers[$focus]} $focus $action
   fi
 
-  if (( action == -2 )); then 
+  if [[ ${handlers[$focus]} == 'FieldHandler' ]]; then
     echo -en "$string"
   fi
 
@@ -292,15 +294,15 @@ Render(){
 
 FieldHandler(){
   local focus=$1
-  echo -en "${selection[$focus]}" 
+  return 0
 }
 
 ButtonHandler(){
   local focus=$(( $1 - 1 ))
   local action=$2
-  if (( action == -3 )); then
-    echo -en "${selection[$focus]}`Foreground yellow`YAYA" 
+  if (( $action == -3 && $_io == 0 )); then
     _io=1
+    echo -en "${selection[$focus]}`Foreground yellow`YAYA" 
   fi
 }
 
@@ -376,7 +378,7 @@ Spin(){
       case $action in
         -2) buffer="${input:2}";
             string+="$buffer" ;;
-        -3) string="";;
+        -3) string="" ;;
         -9) break ;;
          *) blur=$focus; focus=$action ;;
       esac
