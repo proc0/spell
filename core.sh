@@ -72,13 +72,15 @@ CODE(){
 }
 
 Mode(){
-  local mode
-  if [[ $1 == '' || $1 == 'set' ]]; then
-    mode=h
-  elif [[ $1 == 'reset' ]]; then
-    mode=l
+  local _option=$1
+  local _code=$2
+  local _mode
+  if [[ $_option == '' || $_option == 'set' ]]; then
+    _mode=h
+  elif [[ $_option == 'reset' ]]; then
+    _mode=l
   fi
-  echo "\e[?$(CODE $1)$mode" 
+  echo "\e[?$(CODE $_code)$_mode" 
 }
 
 # Term(){
@@ -173,25 +175,6 @@ Field(){
   echo $field
 }
 
-# TextField(){
-#   local x=$(( $1 ))
-#   local y=$(( $2 ))
-#   local tx=$(( $x + 1 ))
-#   local ty=$(( $y + 1 ))
-#   local w=$(( $3 ))
-#   local bg=$4
-#   local fc=$(FOCOL $4)
-#   local label=$5
-
-#   local top=$(Rect $x $y $w 2 $bg)
-#   local lb=$(Text $(( $x+3 )) $y $fc $label)
-#   local field=$(Field $(( $x + 4 )) $y $w $bg $BG_COLOR)
-#   local bott=$(Rect $(( $x + 5 )) $y $w 1 $bg)
-#   # attaching focus at the end
-#   local focus=$(Focus $(( $x+3 )) $(( $y+1 )))
-
-#   echo "$top\n$lb\n$field\n$bott$focus"
-# }
 Button(){
   local x=$1
   local y=$2
@@ -293,11 +276,12 @@ Render(){
 
   if [[ -n ${handlers[$focus]} ]]; then 
     echo -en "${selection[$focus]}" 
-    eval ${handlers[$focus]} $focus $action
   fi
 
   if [[ ${handlers[$focus]} == 'FieldHandler' ]]; then
-    echo -en "$string"
+    echo -en "$(Mode set cursor)$string"
+  elif [[ ${handlers[$focus]} == 'ButtonHandler' ]]; then
+    eval ${handlers[$focus]} $focus $action
   fi
 
   return 0
@@ -311,11 +295,12 @@ FieldHandler(){
 ButtonHandler(){
   local focus=$(( $1 - 1 ))
   local action=$2
-
+  echo -en "$(Mode reset cursor)"
   if (( $action == -3 && _io == 0 )); then
     echo -en "${selection[$focus]}`Foreground yellow`YAYA"
     _io=1
   fi
+  return 0
 }
 
 Resize(){
@@ -346,6 +331,7 @@ Setup(){
   echo -e $setup
   Layout $fc $fg $bg
   echo -e "$(Focus 0 0)"
+  echo -en "$(Mode reset cursor)"
 }
 
 # MAIN
@@ -370,6 +356,7 @@ Guard(){
 Spawn(){
   Page "inits:proc:sub:sys"
   Guard
+  
   stty raw min 0 time 0
 }
 
