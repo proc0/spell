@@ -150,22 +150,46 @@ Rect(){
 }
 
 Field(){
-  local cap1="$(Rect $x $(($row-1)) 1 1 $color)"
-  local label="$(Text $(($x+1)) $row $font_color $field_name)"
-  local cap2="$(Rect $x $row 1 1 $color)"
-  local box="$(Rect $(( $x + 1 )) $row $(( $w - 2 )) 1 $BG_COLOR)"
-  local end="$(Rect $(( $x + $w - 1 )) $row 1 1 $color)"
+  local cap1=$(Rect $x $(($row-1)) 1 1 $color)
+  local label=$(Text $(($x+1)) $row $font_color $field_name)
+  local cap2=$(Rect $x $row 1 1 $color)
+  local box=$(Rect $(( $x + 1 )) $row $(( $w - 2 )) 1 $BG_COLOR)
+  local end=$(Rect $(( $x + $w - 1 )) $row 1 1 $color)
   local field="$(Background $color)$cap1$label\e[$pad;@$cap2$box$end"
+  echo $field
+}
+
+FocusField(){
+  local cap1=$(Rect $x $(($row-1)) 1 1 $color_focus)
+  local label=$(Text $(($x+1)) $row $font_color_focus $field_name)
+  local cap2=$(Rect $x $row 1 1 $color_focus)
+  local box=$(Rect $(( $x + 1 )) $row $(( $w - 2 )) 1 $BG_COLOR)
+  local end=$(Rect $(( $x + $w - 1 )) $row 1 1 $color_focus)
+  local field="$(Background $color_focus)$cap1$label\e[$pad;@$cap2$box$end"
   echo $field
 }
 
 Button(){
   local name=$1
-  local pad=$(( $w - ${#name} ))
+  local pad=$(( $w - ${#name} - 1 ))
 
   # local top="$(Rect $x $(($y-1)) $w 1 $bg)"
   local cap1="$(Rect $x $(($buttonrow-1)) 1 1 $color)"
-  local label="$(Text $x $buttonrow $font_color $name)"
+  local label="$(Text $(( x + 1 )) $buttonrow $font_color $name)"
+  # local foot="$(Rect $x $(($y+1)) $w 1 $bg)"
+
+  local button="$cap1$label\e[$pad;@"
+
+  echo $button
+}
+
+FocusButton(){
+  local name=$1
+  local pad=$(( $w - ${#name} - 1))
+
+  # local top="$(Rect $x $(($y-1)) $w 1 $bg)"
+  local cap1="$(Rect $x $(($buttonrow-1)) 1 1 $color_focus)"
+  local label="$(Text $(( x + 1 )) $buttonrow $font_color_focus $name)"
   # local foot="$(Rect $x $(($y+1)) $w 1 $bg)"
 
   local button="$cap1$label\e[$pad;@"
@@ -174,37 +198,65 @@ Button(){
 }
 
 Form(){
-  local x=2
-  local y=0
-  local w=20
-  local color=$2
-  local font_color=$3
-  local build_type=$4
 
-  local fields=($(echo $1 | tr ":" "\n"))
-  local len=$(( ${#fields[*]} - 1 ))
   for i in $( seq 0 $len ); do
     local row=$(( $y + 2*$(($i+1)) ))
     local field_name=${fields[$i]}
     local pad=$(( $w - ${#field_name} - 1 ))
     content[$i]="$(Field)"
-    if [[ -z $build_type ]]; then
-      selection+=("$(Focus $(($x+1)) $(($row+1)))")
-    fi
-    handlers+=(FieldHandler)
+    focused[$i]="$(FocusField)"
+    selection[$i]="$(Focus $(($x+1)) $(($row+1)))"
+    handlers[$i]='FieldHandler'
   done
 
   local buttpos=$(( $len + 1 ))
   local bottpos=$(( $len + 2 ))
   local buttonrow=$(( $y + $(( 3 * $len )) + 1 ))
-  content[$buttpos]="$(Button '[button]')"
-  if [[ -z $build_type ]]; then
-    selection+=($(Focus $x $(( $y + $(( 3 * $len )) + 1 )) ))
-  fi
-  handlers+=(ButtonHandler)
-  content[$bottpos]="$(Rect $x $(( $y + $(( 3 * $len )) + 1 )) $w 1 $color)"
+  content[$buttpos]=$(Button '[button]')
+  focused[$buttpos]=$(FocusButton '[button]')
+  selection[$buttpos]=$(Focus $x $buttonrow)
+  handlers[$buttpos]='ButtonHandler'
+  content[$bottpos]=$(Rect $x $buttonrow $w 1 $color)
 }
 
+Spawn(){
+  local color=$FORM_COLOR
+  local font_color=$FORM_FONT_COLOR
+  local color_focus=$FORM_FOCUS_COLOR
+  local font_color_focus=$FORM_FONT_FOCUS_COLOR
+  local x=2
+  local y=0
+  local w=20
+
+  local fields=($(echo $SAMPLE_INPUT | tr ":" "\n"))
+  local len=$(( ${#fields[*]} - 1 ))
+  # InitPanel
+  # for comm in ${!commands[@]}; do
+    # Panel $comm
+    # Header
+  Form $fields
+    # Submit 
+  # done
+  # Output
+}
+
+# HANDLERS #
+############
+
+FieldHandler(){
+  return 0
+}
+
+ButtonHandler(){
+  local focus=$(( $1 - 1 ))
+  local action=$2
+  echo -en "$(Mode reset cursor)"
+  if (( $action == -3 && _io == 0 )); then
+    echo -en "${selection[$focus]}`Foreground yellow`YAYA"
+    _io=1
+  fi
+  return 0
+}
 
 # RUN UI
 ###########
@@ -238,24 +290,10 @@ Render(){
   elif [[ ${handlers[$focus]} == 'ButtonHandler' ]]; then
     echo -e "$layout${selection[$focus]}"
     eval ${handlers[$focus]} $focus $action
+  elif (( focus != blur )); then
+    echo -e "$layout"
   fi
 
-  return 0
-}
-
-FieldHandler(){
-  local focus=$1
-  return 0
-}
-
-ButtonHandler(){
-  local focus=$(( $1 - 1 ))
-  local action=$2
-  echo -en "$(Mode reset cursor)"
-  if (( $action == -3 && _io == 0 )); then
-    echo -en "${selection[$focus]}`Foreground yellow`YAYA"
-    _io=1
-  fi
   return 0
 }
 
@@ -286,13 +324,6 @@ Resize(){
   fi
 }
 
-Setup(){
-  echo -e $(Resize $ROWS $COLS)
-  Render
-  echo -e $(Focus 0 0)
-  echo -en $(Mode reset cursor)
-}
-
 # MAIN
 #######
 
@@ -301,7 +332,7 @@ Guard(){
     IFS=$OFS
   else
     OFS=$IFS
-    IFS=''
+    IFS=
   fi
 
   if [[ -n $OTTY ]]; then
@@ -309,25 +340,22 @@ Guard(){
     OTTY=
   else
     OTTY=$(stty -g)
+    stty raw min 0 time 0
   fi
 }
 
-Spawn(){
-  Form $SAMPLE_INPUT $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR 1
-
-  for c in ${!content[@]}; do
-    focused[$c]=${content[$c]}
-  done
-  Form $SAMPLE_INPUT $FORM_COLOR $FORM_FONT_COLOR
-  # content=($(Form $fields $FORM_COLOR $FORM_FONT_COLOR))
-  # focused=($(Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR))
-  # git add -A . | git commit -m <comment> | git push
-  # git checkout {branch;git branch} | git push {$branch}
+Setup(){
   Guard
-  stty raw min 0 time 0
+  echo -e $(Resize $ROWS $COLS)
+  echo -e $(Focus 0 0)
+  echo -en $(Mode reset cursor)
 }
 
 Spin(){
+  if (( action == -8 )); then
+    action=-1
+    Render
+  fi
 
   while [ : ]; do
     input="$(Listen)"
@@ -358,7 +386,7 @@ Core(){
   local bg=$(Background $BG_COLOR)
   local blur=0
   local focus=-1
-  local action=-1
+  local action=-8
   local input=""
   local buffer=""
   local string=""
