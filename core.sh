@@ -220,6 +220,7 @@ Form(){
   fi
   handlers[$i]='ButtonHandler'
 
+  row=$next_row
   i=$(( $i + 1 ))
   content[$i]="$(Rect $x $next_row $w 1 $color)"
 }
