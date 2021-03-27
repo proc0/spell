@@ -184,7 +184,7 @@ Button(){
 }
 
 Form(){
-  local x=2
+  local x=22
   local y=2
   local w=20
   local color=$2
@@ -199,12 +199,18 @@ Form(){
   local i=0
   local row=0
   local next_row=1
+  local header=$(Label $next_row "testheadre")
+
   local field_height=2
   for i in $( seq 0 $len ); do
     row=$(( $y + $field_height*$i ))
     next_row=$(( $row + 1 ))
     local field_name=${fields[$i]}
-    content[$i]="$(Field)"
+    if (( $i == 0 )); then
+      content[$i]="$header$(Field)"
+    else
+      content[$i]="$(Field)"
+    fi
     if [[ -z $build_type ]]; then
       selection[$i]="$(Focus $pad1 $(($next_row + 1)))"
     fi
@@ -225,6 +231,35 @@ Form(){
   content[$i]="$(Rect $x $next_row $w 1 $color)"
 }
 
+Panel(){
+  local x=2
+  local y=2
+  local w=20
+  local color=$2
+  local font_color=$3
+
+  local fields=($(echo $1 | tr ":" "\n"))
+  local len=$(( ${#fields[*]} - 1 ))
+  local pad1=$(( $x + 1 ))
+
+  local i=0
+  local row=0
+  local next_row=1
+  local header=$(Label $next_row "testpanels")
+
+  for i in $( seq 0 $len ); do
+    row=$(( $y + 2*$i ))
+    next_row=$(( $row + 1 ))
+    local field_name=${fields[$i]}
+    if (( $i == 0 )); then
+      panels[$i]="$header$(Label $row $field_name)"
+    else
+      panels[$i]="$(Label $row $field_name)"
+    fi
+    panels_select[$i]="$(Focus $pad1 $(($next_row + 1)))"
+    # handlers[$i]='FieldHandler'
+  done
+}
 
 # RUN UI
 ###########
@@ -232,24 +267,29 @@ Form(){
 Layout(){
   if (( focus > -1 )); then
     for i in ${!content[@]}; do
+      if [[ -n ${panels[$i]} ]]; then
+        panel+="${panels[$i]}"
+      fi
       if (( focus == i )); then
         layout+=${focused[$i]}
+
       else
         layout+=${content[$i]}
       fi
     done
   else
+    panel+=${panels[@]}
     layout=${content[@]}
   fi
-
-  layout="$bg\e[2J$layout$fg$bg"
+  layout="$bg\e[2J$panel$layout$fg$bg"
 
   return 0
 }
 
 Render(){
+  local panel
   local layout
-  if (( focus != blur )); then
+  if (( $focus != $blur )); then
     Layout $focus $fg $bg
   fi
 
@@ -258,6 +298,8 @@ Render(){
   elif [[ ${handlers[$focus]} == 'ButtonHandler' ]]; then
     echo -e "$layout${selection[$focus]}"
     eval ${handlers[$focus]} $focus $action
+  elif (( $focus != $blur )); then
+    echo -e "$layout"
   fi
 
   return 0
@@ -333,6 +375,8 @@ Guard(){
 }
 
 Spawn(){
+  Panel $SAMPLE_INPUT $FORM_COLOR $FORM_FONT_COLOR
+
   Form $SAMPLE_INPUT $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR 1
 
   for c in ${!content[@]}; do
@@ -388,6 +432,8 @@ Core(){
   declare -a content=()
   declare -a selection=()
   declare -f handlers=()
+  declare -a panels=()
+  declare -a panels_select=()
   local _io=0
 
   Spawn
