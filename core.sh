@@ -12,26 +12,48 @@ FORM_FOCUS_COLOR=cyan
 FORM_FONT_COLOR=white
 FORM_FONT_FOCUS_COLOR=black
 
-declare -a focused=()
-declare -a content=()
-declare -a selection=()
-declare -f handlers=()
-_io=0
+SAMPLE_INPUT="inits:pspsp:asdfasd:blahblah"
+
+CODE(){
+  case $1 in
+    insert) echo 4  ;;
+    invert) echo 7  ;;
+    cursor) echo 25 ;;
+    revert) echo 27 ;;
+    *)      echo 0  ;;
+  esac
+}
 
 COLOR(){
-  local value
   case $1 in
-    black) value=0 ;;
-      red) value=1 ;;
-    green) value=2 ;;
-    brown) value=3 ;;
-     blue) value=4 ;;
-    lilac) value=5 ;;
-     cyan) value=6 ;;
-    white) value=7 ;;
-        *) value=9 ;;
+    black) echo 0 ;;
+      red) echo 1 ;;
+    green) echo 2 ;;
+    brown) echo 3 ;;
+     blue) echo 4 ;;
+    lilac) echo 5 ;;
+     cyan) echo 6 ;;
+    white) echo 7 ;;
+        *) echo 9 ;;
   esac
-  echo $value
+}
+
+Mode(){
+  local toggle=$1
+  local code=$2
+  local mode
+
+  if [[ $toggle == '' || $toggle == 'set' ]]; then
+    mode=h
+  elif [[ $toggle == 'reset' ]]; then
+    mode=l
+  fi
+
+  echo "\e[?$(CODE $code)$mode" 
+}
+
+Term(){
+  echo "\e[$(CODE $1)m"
 }
 
 Background(){
@@ -59,34 +81,6 @@ Foreward(){
   echo $point
 }
 
-CODE(){
-  local code
-  case $1 in
-    insert) code=4 ;;
-    invert) code=7 ;;
-    cursor) code=25 ;;
-    revert) code=27 ;;
-    *)      code=0 ;;
-  esac
-  echo $code
-}
-
-Mode(){
-  local _option=$1
-  local _code=$2
-  local _mode
-  if [[ $_option == '' || $_option == 'set' ]]; then
-    _mode=h
-  elif [[ $_option == 'reset' ]]; then
-    _mode=l
-  fi
-  echo "\e[?$(CODE $_code)$_mode" 
-}
-
-# Term(){
-#   echo "\e[$(CODE $1)m"
-# }
-
 # EVENT
 ###########
 
@@ -95,7 +89,7 @@ Listen(){
   local intent=""
   local command
   read -n1 -r intent
-  case $intent in
+  case "$intent" in
     $'\e') 
       read -n2 -r -t.001 command
       case $command in
@@ -112,10 +106,9 @@ Listen(){
 }
 
 Control(){
-  local input="$1"
   local focus=$2
   local action=$focus
-  case "$input" in
+  case "$1" in
      UP) action=$(Backward $focus) ;;
      DN) action=$(Foreward $focus) ;;
      LT) action=$(Backward $focus) ;;
@@ -148,7 +141,7 @@ Rect(){
   local w=$3
   local h=$4
 
-  local rect="$(Background $5)"
+  local rect=$(Background $5)
   for r in $( seq 1 $h ); do 
     rect+="$(Focus $x $(( $y+$r )))\e[$w;@"
   done
@@ -157,37 +150,22 @@ Rect(){
 }
 
 Field(){
-  local x=$1
-  local y=$2
-  local w=$3
-  local name=$4
-  local bg=$5
-  local fg=$6
-  local fc=$7
-  local pad=$(( $w - ${#name} - 1 ))
-
-  local cap1="$(Rect $x $(($y-1)) 1 1 $bg)"
-  local label="$(Text $(($x+1)) $y $fc $name)"
-  local cap2="$(Rect $x $y 1 1 $bg)"
-  local box="$(Rect $(( $x + 1 )) $y $(( $w - 2 )) 1 $fg)"
-  local end="$(Rect $(( $x + $w - 1 )) $y 1 1 $bg)"
-  local field="$(Background $bg)$cap1$label\e[$pad;@$cap2$box$end"
+  local cap1="$(Rect $x $(($row-1)) 1 1 $color)"
+  local label="$(Text $(($x+1)) $row $font_color $field_name)"
+  local cap2="$(Rect $x $row 1 1 $color)"
+  local box="$(Rect $(( $x + 1 )) $row $(( $w - 2 )) 1 $BG_COLOR)"
+  local end="$(Rect $(( $x + $w - 1 )) $row 1 1 $color)"
+  local field="$(Background $color)$cap1$label\e[$pad;@$cap2$box$end"
   echo $field
 }
 
 Button(){
-  local x=$1
-  local y=$2
-  local w=$3
-  local name=$4
-  local bg=$5
-  local fg=$6
-  local fc=$7
+  local name=$1
   local pad=$(( $w - ${#name} ))
 
   # local top="$(Rect $x $(($y-1)) $w 1 $bg)"
-  local cap1="$(Rect $x $(($y-1)) 1 1 $bg)"
-  local label="$(Text $x $y $fc $name)"
+  local cap1="$(Rect $x $(($buttonrow-1)) 1 1 $color)"
+  local label="$(Text $x $buttonrow $font_color $name)"
   # local foot="$(Rect $x $(($y+1)) $w 1 $bg)"
 
   local button="$cap1$label\e[$pad;@"
@@ -196,55 +174,42 @@ Button(){
 }
 
 Form(){
-  local fields=($(echo $1 | tr ":" "\n"))
+  local x=2
+  local y=0
+  local w=20
   local color=$2
   local font_color=$3
-  local field_color="$BG_COLOR"
-  local no_select=$4
-  local x=3
-  local y=3
-  local w=20
+  local build_type=$4
+
+  local fields=($(echo $1 | tr ":" "\n"))
   local len=$(( ${#fields[*]} - 1 ))
   for i in $( seq 0 $len ); do
     local row=$(( $y + 2*$(($i+1)) ))
     local field_name=${fields[$i]}
-    content[$i]="$(Field $x $row $w $field_name $color $field_color $font_color)"
-    if [[ -z $no_select ]]; then
+    local pad=$(( $w - ${#field_name} - 1 ))
+    content[$i]="$(Field)"
+    if [[ -z $build_type ]]; then
       selection+=("$(Focus $(($x+1)) $(($row+1)))")
     fi
     handlers+=(FieldHandler)
   done
+
   local buttpos=$(( $len + 1 ))
   local bottpos=$(( $len + 2 ))
-  content[$buttpos]="$(Button $x $(( $y + $(( 3 * $len )) + 1 )) $w '[button]' $color $field_color $font_color)"
-  if [[ -z $no_select ]]; then
+  local buttonrow=$(( $y + $(( 3 * $len )) + 1 ))
+  content[$buttpos]="$(Button '[button]')"
+  if [[ -z $build_type ]]; then
     selection+=($(Focus $x $(( $y + $(( 3 * $len )) + 1 )) ))
   fi
   handlers+=(ButtonHandler)
   content[$bottpos]="$(Rect $x $(( $y + $(( 3 * $len )) + 1 )) $w 1 $color)"
 }
 
-Page(){
-  local fields=$1
-  Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR 1
-
-  for c in ${!content[@]}; do
-    focused[$c]=${content[$c]}
-  done
-  Form $fields $FORM_COLOR $FORM_FONT_COLOR
-  # content=($(Form $fields $FORM_COLOR $FORM_FONT_COLOR))
-  # focused=($(Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR))
-}
 
 # RUN UI
 ###########
 
 Layout(){
-  local focus=$1
-  local fg=$2
-  local bg=$3
-
-  local layout
   if (( focus > -1 )); then
     for i in ${!content[@]}; do
       if (( focus == i )); then
@@ -257,30 +222,21 @@ Layout(){
     layout=${content[@]}
   fi
 
-  echo -e "$bg\e[2J$layout$fg$bg"
+  layout="$bg\e[2J$layout$fg$bg"
 
   return 0
 }
 
 Render(){
-  local focus=$1
-  local action=$2
-  local blur=$3
-  local string="$4"
-  local fg=$5
-  local bg=$6
-
+  local layout
   if (( focus != blur )); then
     Layout $focus $fg $bg
   fi
 
-  if [[ -n ${handlers[$focus]} ]]; then 
-    echo -en "${selection[$focus]}" 
-  fi
-
   if [[ ${handlers[$focus]} == 'FieldHandler' ]]; then
-    echo -en "$(Mode set cursor)$string"
+    echo -en "$layout${selection[$focus]}$(Mode set cursor)$string"
   elif [[ ${handlers[$focus]} == 'ButtonHandler' ]]; then
+    echo -e "$layout${selection[$focus]}"
     eval ${handlers[$focus]} $focus $action
   fi
 
@@ -304,34 +260,37 @@ ButtonHandler(){
 }
 
 Resize(){
-  local pos
-  printf "\e[13t" > /dev/tty
-  IFS=';' read -r -d t -a pos
+  local win_h=$1
+  local win_w=$2
+  local win_code
 
-  local xpos=${pos[1]}
-  local ypos=${pos[2]}
+  if [[ -n $win_h && -n $win_w ]]; then
+    win_code="\e[8;$win_h;$win_w;t\e[1;$win_h;r"
+    echo $win_code
+  else
+    local pos
+    printf "\e[13t" > /dev/tty
+    IFS=';' read -r -d t -a pos
 
-  printf "\e[14;2t" > /dev/tty
-  IFS=';' read -r -d t -a size
+    local xpos=${pos[1]}
+    local ypos=${pos[2]}
 
-  local hsize=${size[1]}
-  local wsize=${size[2]}
+    printf "\e[14;2t" > /dev/tty
+    IFS=';' read -r -d t -a size
 
-  echo "\e[8;$hsize;$wsize;t"
+    local hsize=${size[1]}
+    local wsize=${size[2]}
+
+    win_code="\e[8;$hsize;$wsize;t\e[1;$win_h;"
+    echo $win_code
+  fi
 }
 
-# TODO refactor setup, use Resize
 Setup(){
-  local fg=$1
-  local bg=$2
-  local fc=-1
-  # local setup="$(Resize)"
-  local setup="\e[8;$ROWS;$COLS;t"
-  setup+="\e[1;$ROWS;r"
-  echo -e $setup
-  Layout $fc $fg $bg
-  echo -e "$(Focus 0 0)"
-  echo -en "$(Mode reset cursor)"
+  echo -e $(Resize $ROWS $COLS)
+  Render
+  echo -e $(Focus 0 0)
+  echo -en $(Mode reset cursor)
 }
 
 # MAIN
@@ -354,21 +313,21 @@ Guard(){
 }
 
 Spawn(){
-  Page "inits:proc:sub:sys"
+  Form $SAMPLE_INPUT $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR 1
+
+  for c in ${!content[@]}; do
+    focused[$c]=${content[$c]}
+  done
+  Form $SAMPLE_INPUT $FORM_COLOR $FORM_FONT_COLOR
+  # content=($(Form $fields $FORM_COLOR $FORM_FONT_COLOR))
+  # focused=($(Form $fields $FORM_FOCUS_COLOR $FORM_FONT_FOCUS_COLOR))
+  # git add -A . | git commit -m <comment> | git push
+  # git checkout {branch;git branch} | git push {$branch}
   Guard
-  
   stty raw min 0 time 0
 }
 
 Spin(){
-  local blur=-1
-  local focus=-1
-  local action=-1
-  local input=""
-  local buffer=""
-  local string=""
-  local fg=$1
-  local bg=$2
 
   while [ : ]; do
     input="$(Listen)"
@@ -381,7 +340,7 @@ Spin(){
         -9) break ;;
          *) blur=$focus; focus=$action ;;
       esac
-      Render $focus $action $blur "$string" $fg $bg
+      Render
     fi
   done
 
@@ -395,12 +354,25 @@ Stop(){
 }
 
 Core(){
-  local fg="$(Foreground $FG_COLOR)"
-  local bg="$(Background $BG_COLOR)"
+  local fg=$(Foreground $FG_COLOR)
+  local bg=$(Background $BG_COLOR)
+  local blur=0
+  local focus=-1
+  local action=-1
+  local input=""
+  local buffer=""
+  local string=""
+  
+
+  declare -a focused=()
+  declare -a content=()
+  declare -a selection=()
+  declare -f handlers=()
+  local _io=0
 
   Spawn
-  Setup $fg $bg
-  Spin $fg $bg
+  Setup
+  Spin
   Stop
 }
 
