@@ -135,6 +135,16 @@ Text(){
   echo "$(Foreground $3)$(Focus $x $y)$4"
 }
 
+Label(){
+  local cur_row=$1
+  local name=$2
+  local pad=$(( $w - ${#name} - 1 ))
+  local cap1="$(Rect $x $cur_row 1 1 $color)"
+  local label="$(Text $pad1 $(($cur_row + 1)) $font_color $name)"
+  local cap2="$(Rect $(( $x + ${#name} + 1 )) $cur_row $pad 1 $color)"
+  echo "$cap1$label$cap2"
+}
+
 Rect(){
   local x=$1
   local y=$2
@@ -150,12 +160,12 @@ Rect(){
 }
 
 Field(){
-  local cap1="$(Rect $x $(($row-1)) 1 1 $color)"
-  local label="$(Text $(($x+1)) $row $font_color $field_name)"
-  local cap2="$(Rect $x $row 1 1 $color)"
-  local box="$(Rect $(( $x + 1 )) $row $(( $w - 2 )) 1 $BG_COLOR)"
-  local end="$(Rect $(( $x + $w - 1 )) $row 1 1 $color)"
-  local field="$(Background $color)$cap1$label\e[$pad;@$cap2$box$end"
+
+  local field=$(Label $row $field_name)
+  local cap=$(Rect $x $next_row 1 1 $color)
+  local box=$(Rect $(( $x + 1 )) $next_row $(( $w - 2 )) 1 $BG_COLOR)
+  local end=$(Rect $(( $x + $w - 1 )) $next_row 1 1 $color)
+  field+="$cap$box$end"
   echo $field
 }
 
@@ -175,34 +185,44 @@ Button(){
 
 Form(){
   local x=2
-  local y=0
+  local y=2
   local w=20
   local color=$2
   local font_color=$3
   local build_type=$4
 
   local fields=($(echo $1 | tr ":" "\n"))
+  local field_len=${#fields[*]}
   local len=$(( ${#fields[*]} - 1 ))
+  local pad1=$(( $x + 1 ))
+
+  local i=0
+  local row=0
+  local next_row=1
+  local field_height=2
   for i in $( seq 0 $len ); do
-    local row=$(( $y + 2*$(($i+1)) ))
+    row=$(( $y + $field_height*$i ))
+    next_row=$(( $row + 1 ))
     local field_name=${fields[$i]}
-    local pad=$(( $w - ${#field_name} - 1 ))
     content[$i]="$(Field)"
     if [[ -z $build_type ]]; then
-      selection+=("$(Focus $(($x+1)) $(($row+1)))")
+      selection[$i]="$(Focus $pad1 $(($next_row + 1)))"
     fi
-    handlers+=(FieldHandler)
+    handlers[$i]='FieldHandler'
   done
 
-  local buttpos=$(( $len + 1 ))
-  local bottpos=$(( $len + 2 ))
-  local buttonrow=$(( $y + $(( 3 * $len )) + 1 ))
-  content[$buttpos]="$(Button '[button]')"
+  i=$(( $i + 1 ))
+  row=$(( $y + 2*$i ))
+  next_row=$(($row+1))
+  content[$i]="$(Label $row '[button]')"
   if [[ -z $build_type ]]; then
-    selection+=($(Focus $x $(( $y + $(( 3 * $len )) + 1 )) ))
+    selection+=($(Focus $x $row ))
   fi
-  handlers+=(ButtonHandler)
-  content[$bottpos]="$(Rect $x $(( $y + $(( 3 * $len )) + 1 )) $w 1 $color)"
+  handlers[$i]='ButtonHandler'
+
+  row=$next_row
+  i=$(( $i + 1 ))
+  content[$i]="$(Rect $x $row $w 1 $color)"
 }
 
 
