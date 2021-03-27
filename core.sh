@@ -345,8 +345,8 @@ Guard(){
 }
 
 Setup(){
-  Guard
   echo -e $(Resize $ROWS $COLS)
+  Guard
   echo -e $(Focus 0 0)
   echo -en $(Mode reset cursor)
 }
